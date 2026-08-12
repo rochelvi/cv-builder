@@ -11,7 +11,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas as pdfcanvas
 
-from .model import CV, Job, Theme
+from .model import CV, Job, SkillGroup, Theme
 
 
 def color(value: str, fallback: str = "#000000"):
@@ -96,12 +96,19 @@ class _Renderer:
         self.c.setFillColor(self.p.background)
         self.c.rect(0, 0, PAGE_W, PAGE_H, stroke=0, fill=1)
 
+    def _page_break(self) -> None:
+        self.c.showPage()
+        self._page_bg()
+        self.y = 52.0
+
+    def _room(self) -> float:
+        """Points left between the cursor and the bottom margin."""
+        return PAGE_H - BOTTOM - self.y
+
     def _need(self, space: float) -> None:
         """Start a new page if `space` points do not fit below the cursor."""
-        if self.y + space > PAGE_H - BOTTOM:
-            self.c.showPage()
-            self._page_bg()
-            self.y = 52.0
+        if space > self._room():
+            self._page_break()
 
     @staticmethod
     def wrap(text: str, font: str, size: float, width: float) -> list[str]:
@@ -192,64 +199,105 @@ class _Renderer:
         self.section(self.cv.volunteer_title or "Volunteer Work")
         self.job_entries(jobs)
 
+    @staticmethod
+    def _group_height(group: SkillGroup, first: bool) -> float:
+        """Space one skill group takes in its column, mirroring _draw_skills."""
+        count = len([s for s in group.skills if s.name.strip()])
+        gap = 11.3 if first else 16.9
+        return gap + (14.8 + 11.0 * (count - 1) if count else 0.0)
+
+    def _skills_that_fit(self, groups: list[SkillGroup], space: float) -> int:
+        """How many groups fit in `space`, filling the two columns alternately."""
+        heights, counts = [0.0, 0.0], [0, 0]
+        for i, group in enumerate(groups):
+            column = i % 2
+            height = heights[column] + self._group_height(group, counts[column] == 0)
+            if max(height, heights[1 - column]) > space:
+                return i
+            heights[column] = height
+            counts[column] += 1
+        return len(groups)
+
+    def _draw_skills(self, groups: list[SkillGroup]) -> None:
+        top = self.y
+        bottom = top
+        for column, x in enumerate((SKILL_X, COL2_X)):
+            self.y = top
+            for i, group in enumerate(groups[column::2]):
+                self.y += 11.3 if i == 0 else 16.9
+                self._text(x, self.y, group.title, BOLD, 9, self.p.heading)
+                named = [s for s in group.skills if s.name.strip()]
+                for j, skill in enumerate(named):
+                    self.y += 14.8 if j == 0 else 11.0
+                    tone = self.p.accent if skill.highlight else self.p.body
+                    self._text(x, self.y, f"\u00b7 {skill.name}", REGULAR, 8, tone)
+            bottom = max(bottom, self.y)
+        self.y = bottom
+
     def skills(self) -> None:
         groups = [g for g in self.cv.skill_groups if g.title or g.skills]
         if not groups:
             return
         self.section("Technical Skills")
-        top = self.y
-        columns = [groups[0::2], groups[1::2]]
-        bottom = top
-        for column, x in zip(columns, (SKILL_X, COL2_X)):
-            self.y = top
-            for i, group in enumerate(column):
-                self.y += 11.3 if i == 0 else 16.9
-                self._text(x, self.y, group.title, BOLD, 9, self.p.heading)
-                for skill in group.skills:
-                    if not skill.name.strip():
-                        continue
-                    self.y += 14.8 if skill is group.skills[0] else 11.0
-                    tone = self.p.accent if skill.highlight else self.p.body
-                    self._text(x, self.y, f"\u00b7 {skill.name}", REGULAR, 8, tone)
-            bottom = max(bottom, self.y)
-        self.y = bottom
+        while groups:
+            take = self._skills_that_fit(groups, self._room())
+            if take == 0:  # nothing fits below the cursor - carry on overleaf
+                self._page_break()
+                take = max(1, self._skills_that_fit(groups, self._room()))
+            self._draw_skills(groups[:take])
+            groups = groups[take:]
 
     def soft_skills(self) -> None:
         items = [s for s in self.cv.soft_skills if s.strip()]
         if not items:
             return
         self.section("Soft Skills", gap=22.4)
-        self.y += 10.3
-        x = LEFT
         sep = " \u00b7 "
-        for i, item in enumerate(items):
-            if i:
-                self._text(x, self.y, sep, REGULAR, 8, self.p.accent)
-                x += pdfmetrics.stringWidth(sep, REGULAR, 8)
+        sep_w = pdfmetrics.stringWidth(sep, REGULAR, 8)
+
+        lines: list[list[str]] = []
+        used = 0.0
+        for item in items:
             width = pdfmetrics.stringWidth(item, REGULAR, 8)
-            if x + width > RIGHT:
-                x = LEFT
-                self.y += 12.0
-            self._text(x, self.y, item, REGULAR, 8, self.p.accent2)
-            x += width
+            if lines and LEFT + used + sep_w + width <= RIGHT:
+                lines[-1].append(item)
+                used += sep_w + width
+            else:
+                lines.append([item])
+                used = width
+
+        for i, line in enumerate(lines):
+            self._need(12.0)
+            self.y += 10.3 if i == 0 else 12.0
+            x = LEFT
+            for j, item in enumerate(line):
+                self._text(x, self.y, item, REGULAR, 8, self.p.accent2)
+                x += pdfmetrics.stringWidth(item, REGULAR, 8)
+                last = i == len(lines) - 1 and j == len(line) - 1
+                if not last and x + sep_w <= RIGHT:
+                    self._text(x, self.y, sep, REGULAR, 8, self.p.accent)
+                    x += sep_w
 
     def education(self) -> None:
         items = [e for e in self.cv.education if e.title or e.subtitle]
         if not items:
             return
         self.section("Education & Certifications", gap=16.6)
-        top = self.y
-        bottom = top
-        for i, item in enumerate(items):
-            col, row = i % 3, i // 3
-            x = LEFT + col * 173.85
-            y = top + 11.25 + row * 30.0
-            tone = self.p.accent2 if item.highlight else self.p.faint
-            self._text(x - 6, y, item.title, BOLD, 9, tone)
-            if item.subtitle:
-                self._text(x - 6, y + 13.0, item.subtitle, REGULAR, 8, self.p.subtle)
-            bottom = max(bottom, y + (13.0 if item.subtitle else 0.0))
-        self.y = bottom
+        rows = [items[i:i + 3] for i in range(0, len(items), 3)]
+        trailing = 0.0  # height the previous row's subtitles added below its baseline
+        for r, row in enumerate(rows):
+            subtitled = 13.0 if any(item.subtitle for item in row) else 0.0
+            gap = 11.25 if r == 0 else 17.0 + trailing
+            self._need(gap + subtitled)
+            self.y += gap
+            for col, item in enumerate(row):
+                x = LEFT + col * 173.85 - 6
+                tone = self.p.accent2 if item.highlight else self.p.faint
+                self._text(x, self.y, item.title, BOLD, 9, tone)
+                if item.subtitle:
+                    self._text(x, self.y + 13.0, item.subtitle, REGULAR, 8, self.p.subtle)
+            trailing = subtitled
+        self.y += trailing
 
     def lab(self) -> None:
         items = [b for b in self.cv.lab_bullets if b.strip()]
@@ -286,6 +334,7 @@ def render_bytes(cv: CV) -> bytes:
     buffer = io.BytesIO()
     canvas = pdfcanvas.Canvas(buffer, pagesize=A4)
     canvas.setTitle(f"{cv.name} \u2014 CV" if cv.name else "CV")
+    canvas.setAuthor(cv.name)
     _Renderer(cv, canvas).run()
     canvas.save()
     return buffer.getvalue()

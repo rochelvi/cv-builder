@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
+from string import Template
 
 import pymupdf
 from PySide6.QtCore import QSize, Qt, QTimer
@@ -49,27 +49,59 @@ from .renderer import render_bytes, render_pdf
 
 APP_NAME = "CV Builder"
 
-STYLE = """
-QWidget { background: #14171c; color: #e8ecf2; font-size: 13px; }
+STYLE = Template("""
+QWidget { background: $chrome; color: $heading; font-size: 13px; }
 QLineEdit, QPlainTextEdit, QSpinBox {
-    background: #0d0f12; border: 1px solid #2a2f3a; border-radius: 4px; padding: 4px;
-    selection-background-color: #4ade80; selection-color: #0d0f12;
+    background: $background; border: 1px solid $rule; border-radius: 4px; padding: 4px;
+    selection-background-color: $accent; selection-color: $background;
 }
-QLineEdit:focus, QPlainTextEdit:focus { border: 1px solid #4ade80; }
+QLineEdit:focus, QPlainTextEdit:focus { border: 1px solid $accent; }
 QPushButton {
-    background: #1d222a; border: 1px solid #2a2f3a; border-radius: 4px; padding: 6px 12px;
+    background: $button; border: 1px solid $rule; border-radius: 4px; padding: 6px 12px;
 }
-QPushButton:hover { border-color: #4ade80; color: #4ade80; }
-QToolButton { background: transparent; border: none; color: #7a8292; padding: 2px 6px; }
-QToolButton:hover { color: #4ade80; }
-QLabel[heading="true"] { color: #4ade80; font-weight: bold; letter-spacing: 1px; }
-QLabel[sub="true"] { color: #7a8292; }
-QFrame[card="true"] { background: #171b21; border: 1px solid #2a2f3a; border-radius: 6px; }
+QPushButton:hover { border-color: $accent; color: $accent; }
+QToolButton { background: transparent; border: none; color: $subtle; padding: 2px 6px; }
+QToolButton:hover { color: $accent; }
+QLabel[heading="true"] { color: $accent; font-weight: bold; letter-spacing: 1px; }
+QLabel[sub="true"] { color: $subtle; }
+QFrame[card="true"] { background: $card; border: 1px solid $rule; border-radius: 6px; }
 QScrollArea { border: none; }
-QCheckBox { color: #9aa0ae; }
-QComboBox { background: #0d0f12; border: 1px solid #2a2f3a; border-radius: 4px; padding: 4px; }
-QComboBox QAbstractItemView { background: #0d0f12; selection-background-color: #2a2f3a; }
-"""
+QCheckBox { color: $body; }
+QComboBox { background: $background; border: 1px solid $rule; border-radius: 4px; padding: 4px; }
+QComboBox QAbstractItemView { background: $background; selection-background-color: $rule; }
+""")
+
+
+def _hex(value: str, fallback: str) -> str:
+    """Normalise a colour string, tolerating whatever ended up in the JSON."""
+    color = QColor(value)
+    return color.name() if color.isValid() else fallback
+
+
+def _mix(base: str, towards: str, amount: float) -> str:
+    """Blend two colours - used to derive chrome shades from the palette."""
+    a, b = QColor(base), QColor(towards)
+    pairs = ((a.red(), b.red()), (a.green(), b.green()), (a.blue(), b.blue()))
+    return QColor(*(round(x + (y - x) * amount) for x, y in pairs)).name()
+
+
+def style_for(theme: Theme) -> str:
+    """Build the Qt stylesheet from a CV palette, so the app matches the preview.
+
+    The three surface shades are the page background nudged towards the heading
+    colour, which lightens dark themes and darkens light ones automatically.
+    """
+    colors = {
+        key: _hex(getattr(theme, key, default), default)
+        for key, default in Theme().to_dict().items()
+    }
+    background, heading = colors["background"], colors["heading"]
+    return STYLE.substitute(
+        colors,
+        chrome=_mix(background, heading, 0.04),
+        card=_mix(background, heading, 0.055),
+        button=_mix(background, heading, 0.09),
+    )
 
 
 def heading(text: str) -> QLabel:
@@ -99,7 +131,8 @@ class ColorButton(QPushButton):
     def apply(self) -> None:
         text_color = "#000000" if QColor(self._value).lightness() > 140 else "#ffffff"
         self.setStyleSheet(
-            f"background: {self._value}; color: {text_color}; border: 1px solid #2a2f3a;"
+            f"background: {self._value}; color: {text_color};"
+            "border: 1px solid rgba(128, 128, 128, 0.45);"
             "border-radius: 4px; font-size: 11px;"
         )
         self.setText(self._value)
@@ -431,6 +464,7 @@ class MainWindow(QMainWindow):
         self.preview_page = 0
         self.page_count = 1
         self._pdf_cache = b""
+        self._applied_theme: Theme | None = None
 
         self.refresh_timer = QTimer(self)
         self.refresh_timer.setSingleShot(True)
@@ -640,9 +674,19 @@ class MainWindow(QMainWindow):
         self.preview_page = max(0, min(self.page_count - 1, self.preview_page + delta))
         self.render_preview_page()
 
+    def apply_theme(self, theme: Theme) -> None:
+        """Repaint the window with the CV palette; a no-op while it is unchanged."""
+        if theme == self._applied_theme:
+            return
+        self._applied_theme = theme
+        # on the application, not the window, so menus and dialogs follow too
+        QApplication.instance().setStyleSheet(style_for(theme))
+
     def update_preview(self) -> None:
+        cv = self.collect()
+        self.apply_theme(cv.theme)
         try:
-            self._pdf_cache = render_bytes(self.collect())
+            self._pdf_cache = render_bytes(cv)
         except Exception as exc:  # keep the UI alive on any rendering hiccup
             self.preview.setText(f"Preview error: {exc}")
             return
@@ -727,12 +771,7 @@ def main() -> int:
     os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
-    app.setStyleSheet(STYLE)
+    app.setStyleSheet(style_for(Theme()))
     window = MainWindow()
     window.show()
     return app.exec()
-
-
-if __name__ == "__main__":
-    tempfile.gettempdir()
-    sys.exit(main())
