@@ -1,0 +1,223 @@
+{
+  "name": "Daniil Mishin",
+  "role": "SYSTEM ADMINISTRATOR",
+  "email": "mishindaniil365247@gmail.com",
+  "location": "Tashkent, Uzbekistan",
+  "website": "github.com/rochelvi",
+  "summary": "System administrator with 3+ years of hands-on experience managing Windows Server and Linux environments, Active Directory, network infrastructure, and virtualization. Graduate of School 21 Tashkent cybersecurity program. Builds and operates a personal lab (Proxmox, EVE-NG, Wazuh) — brings security awareness to every infrastructure task. Comfortable with scripting (Python, Bash, PowerShell) and automating routine admin work.",
+  "jobs": [
+    {
+      "title": "System Administrator",
+      "period": "2022 – 2025 · 3 yrs",
+      "company": "ИП ООО «TNG LOGGING ASIA»",
+      "location": "Tashkent",
+      "bullets": [
+        "Administered Windows Server (2016/2019) and Ubuntu/Debian servers; managed AD, GPO, DNS, DHCP for 50+ users",
+        "Set up and maintained Hyper-V and VMware virtualization clusters; handled VM provisioning and snapshot management",
+        "Configured and maintained network equipment (MikroTik, Cisco); managed firewall rules, VLANs, VPN tunnels",
+        "Implemented and monitored backup solutions; ensured system uptime and performed incident response",
+        "Wrote PowerShell and Bash scripts to automate user provisioning, log rotation, and patch deployment"
+      ]
+    },
+    {
+      "title": "Cybersecurity Intern",
+      "period": "Jan 2026 – Apr 2026",
+      "company": "School 21 (НОУ «SHKOLA 21»)",
+      "location": "Tashkent",
+      "bullets": [
+        "Deployed and hardened server infrastructure: Vaultwarden on Docker + Nginx Proxy Manager + automated backups",
+        "Configured Wazuh SIEM and Suricata IDS on Proxmox; wrote detection rules from live pcap analysis",
+        "Designed enterprise network topology (NGFW + WireGuard VPN + IDS + endpoint protection)",
+        "Configured КриптоПРО NGate: GOST TLS, certificate generation, SCP key transfer, Windows CSP integration",
+        "Automated Wazuh agent deployment and removal across 50+ hosts using Python + paramiko over SSH"
+      ]
+    }
+  ],
+  "volunteer_title": "VOLUNTEER WORK",
+  "volunteering": [
+    {
+      "title": "IT Volunteer",
+      "period": "2023 – 2024",
+      "company": "School 21 community",
+      "location": "Tashkent",
+      "bullets": [
+        "Helped fellow students set up Linux workstations, VPN access, and lab virtual machines",
+        "Ran informal workshops on Active Directory basics and network troubleshooting"
+      ]
+    }
+  ],
+  "skill_groups": [
+    {
+      "title": "OS & Servers",
+      "skills": [
+        {
+          "name": "Windows Server 2016/19/22/25",
+          "highlight": true
+        },
+        {
+          "name": "Ubuntu/Debian/Arch",
+          "highlight": true
+        },
+        {
+          "name": "CentOS",
+          "highlight": false
+        }
+      ]
+    },
+    {
+      "title": "Directory & Services",
+      "skills": [
+        {
+          "name": "Active Directory",
+          "highlight": true
+        },
+        {
+          "name": "GPO",
+          "highlight": true
+        },
+        {
+          "name": "DNS/DHCP",
+          "highlight": true
+        },
+        {
+          "name": "Nginx",
+          "highlight": false
+        }
+      ]
+    },
+    {
+      "title": "Virtualization",
+      "skills": [
+        {
+          "name": "Proxmox",
+          "highlight": true
+        },
+        {
+          "name": "Hyper-V",
+          "highlight": true
+        },
+        {
+          "name": "GNS3",
+          "highlight": true
+        },
+        {
+          "name": "VMware Workstation",
+          "highlight": false
+        },
+        {
+          "name": "EVE-NG",
+          "highlight": false
+        }
+      ]
+    },
+    {
+      "title": "Scripting",
+      "skills": [
+        {
+          "name": "Python",
+          "highlight": true
+        },
+        {
+          "name": "Bash",
+          "highlight": true
+        },
+        {
+          "name": "PowerShell",
+          "highlight": true
+        },
+        {
+          "name": "Git",
+          "highlight": false
+        }
+      ]
+    },
+    {
+      "title": "Networking",
+      "skills": [
+        {
+          "name": "MikroTik",
+          "highlight": true
+        },
+        {
+          "name": "Cisco IOS",
+          "highlight": true
+        },
+        {
+          "name": "VLANs",
+          "highlight": false
+        },
+        {
+          "name": "VPN/WireGuard",
+          "highlight": false
+        },
+        {
+          "name": "IPsec",
+          "highlight": false
+        }
+      ]
+    },
+    {
+      "title": "Security (bonus)",
+      "skills": [
+        {
+          "name": "Wazuh SIEM",
+          "highlight": false
+        },
+        {
+          "name": "Suricata IDS",
+          "highlight": false
+        },
+        {
+          "name": "MITRE ATT&CK",
+          "highlight": false
+        },
+        {
+          "name": "Docker",
+          "highlight": false
+        }
+      ]
+    }
+  ],
+  "soft_skills": [
+    "Problem Solving",
+    "Self-learning",
+    "Communication",
+    "Time Management",
+    "Attention to Detail",
+    "Technical Documentation",
+    "Team Collaboration"
+  ],
+  "education": [
+    {
+      "title": "School 21 — Cybersecurity Program",
+      "subtitle": "НОУ «SHKOLA 21», Tashkent · 2026",
+      "highlight": true
+    },
+    {
+      "title": "CompTIA Security+",
+      "subtitle": "Planned · Priority #1",
+      "highlight": false
+    },
+    {
+      "title": "eJPT",
+      "subtitle": "Planned · Offensive track",
+      "highlight": false
+    }
+  ],
+  "lab_title": "PERSONAL LAB",
+  "lab_bullets": [
+    "Proxmox hypervisor running EVE-NG (Cisco/MikroTik/Juniper topologies), Wazuh SIEM, and Suricata IDS for continuous practice",
+    "Vaultwarden self-hosted deployment: Docker, Nginx Proxy Manager, automated SQLite backups (Bash + Python)",
+    "Mass SSH automation: paramiko-based scripts for fleet-wide agent deployment/removal across 50+ Ubuntu hosts"
+  ],
+  "theme": {
+    "background": "#0d0f12",
+    "rule": "#2a2f3a",
+    "heading": "#e8ecf2",
+    "body": "#9aa0ae",
+    "subtle": "#7a8292",
+    "faint": "#4a5260",
+    "accent": "#4ade80",
+    "accent2": "#7ab8f5"
+  }
+}
