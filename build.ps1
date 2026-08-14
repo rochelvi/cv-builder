@@ -11,10 +11,14 @@ if (-not (Test-Path ".venv")) {
 }
 
 & ".venv\Scripts\Activate.ps1"
-python -m pip install --upgrade pip
-pip install -r requirements.txt pyinstaller
-pyinstaller --noconfirm --clean --onefile --windowed --name CVBuilder main.py
+try {
+    python -m pip install -r requirements.txt
+    python -m pip install pyinstaller
+    pyinstaller --noconfirm --clean --onefile --windowed --name CVBuilder main.py
 
-Write-Host ""
-Write-Host "Done. The app is at dist\CVBuilder.exe"
-Read-Host "Press Enter to exit"
+    Write-Host ""
+    Write-Host "Done. The app is at dist\CVBuilder.exe"
+    Read-Host "Press Enter to exit"
+} catch {
+    Write-Host "An error occurred while building the application."
+}
