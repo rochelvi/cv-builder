@@ -6,7 +6,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from string import Template
 
 import pymupdf
 from PySide6.QtCore import QSize, Qt, QTimer
@@ -34,6 +33,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from . import fluent
 from .model import (
     CV,
     PRESETS,
@@ -49,63 +49,8 @@ from .renderer import render_bytes, render_pdf
 
 APP_NAME = "CV Builder"
 
-STYLE = Template("""
-QWidget { background: $chrome; color: $heading; font-size: 13px; }
-QLineEdit, QPlainTextEdit, QSpinBox {
-    background: $background; border: 1px solid $rule; border-radius: 4px; padding: 4px;
-    selection-background-color: $accent; selection-color: $background;
-}
-QLineEdit:focus, QPlainTextEdit:focus { border: 1px solid $accent; }
-QPushButton {
-    background: $button; border: 1px solid $rule; border-radius: 4px; padding: 6px 12px;
-}
-QPushButton:hover { border-color: $accent; color: $accent; }
-QToolButton { background: transparent; border: none; color: $subtle; padding: 2px 6px; }
-QToolButton:hover { color: $accent; }
-QLabel[heading="true"] { color: $accent; font-weight: bold; letter-spacing: 1px; }
-QLabel[sub="true"] { color: $subtle; }
-QFrame[card="true"] { background: $card; border: 1px solid $rule; border-radius: 6px; }
-QScrollArea { border: none; }
-QCheckBox { color: $body; }
-QComboBox { background: $background; border: 1px solid $rule; border-radius: 4px; padding: 4px; }
-QComboBox QAbstractItemView { background: $background; selection-background-color: $rule; }
-""")
-
-
-def _hex(value: str, fallback: str) -> str:
-    """Normalise a colour string, tolerating whatever ended up in the JSON."""
-    color = QColor(value)
-    return color.name() if color.isValid() else fallback
-
-
-def _mix(base: str, towards: str, amount: float) -> str:
-    """Blend two colours - used to derive chrome shades from the palette."""
-    a, b = QColor(base), QColor(towards)
-    pairs = ((a.red(), b.red()), (a.green(), b.green()), (a.blue(), b.blue()))
-    return QColor(*(round(x + (y - x) * amount) for x, y in pairs)).name()
-
-
-def style_for(theme: Theme) -> str:
-    """Build the Qt stylesheet from a CV palette, so the app matches the preview.
-
-    The three surface shades are the page background nudged towards the heading
-    colour, which lightens dark themes and darkens light ones automatically.
-    """
-    colors = {
-        key: _hex(getattr(theme, key, default), default)
-        for key, default in Theme().to_dict().items()
-    }
-    background, heading = colors["background"], colors["heading"]
-    return STYLE.substitute(
-        colors,
-        chrome=_mix(background, heading, 0.04),
-        card=_mix(background, heading, 0.055),
-        button=_mix(background, heading, 0.09),
-    )
-
-
 def heading(text: str) -> QLabel:
-    label = QLabel(text.upper())
+    label = QLabel(text)
     label.setProperty("heading", True)
     return label
 
@@ -459,12 +404,12 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(APP_NAME)
-        self.resize(1400, 900)
+        self.resize(1500, 950)
         self.current_path: Path | None = None
         self.preview_page = 0
         self.page_count = 1
         self._pdf_cache = b""
-        self._applied_theme: Theme | None = None
+        self._styled = False
 
         self.refresh_timer = QTimer(self)
         self.refresh_timer.setSingleShot(True)
@@ -474,16 +419,35 @@ class MainWindow(QMainWindow):
         central = QWidget()
         root = QHBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
-        root.addWidget(self._build_form(), 3)
-        root.addWidget(self._build_preview(), 4)
+        root.setSpacing(0)
+        root.addWidget(self._build_form(), 1)
+        root.addWidget(self._build_preview(), 1)
         self.setCentralWidget(central)
         self._build_menu()
 
+        QApplication.instance().styleHints().colorSchemeChanged.connect(
+            lambda _scheme: self.apply_system_theme()
+        )
         self.load_cv(sample_cv())
+
+    # ---------- appearance ----------
+    def showEvent(self, event) -> None:
+        # the window handle DWM needs only exists once the window is realised
+        super().showEvent(event)
+        if not self._styled:
+            self._styled = True
+            self.apply_system_theme()
+
+    def apply_system_theme(self) -> None:
+        """Follow the Windows light/dark setting. The CV palette stays in the PDF."""
+        dark = fluent.is_dark()
+        fluent.apply_titlebar(self, dark)
+        QApplication.instance().setStyleSheet(fluent.stylesheet(dark))
 
     # ---------- UI construction ----------
     def _build_form(self) -> QWidget:
         container = QWidget()
+        container.setProperty("pane", True)
         layout = QVBoxLayout(container)
         layout.setContentsMargins(14, 14, 8, 14)
 
@@ -580,6 +544,7 @@ class MainWindow(QMainWindow):
 
     def _build_preview(self) -> QWidget:
         container = QWidget()
+        container.setProperty("pane", True)
         layout = QVBoxLayout(container)
         layout.setContentsMargins(8, 14, 14, 14)
 
@@ -674,17 +639,8 @@ class MainWindow(QMainWindow):
         self.preview_page = max(0, min(self.page_count - 1, self.preview_page + delta))
         self.render_preview_page()
 
-    def apply_theme(self, theme: Theme) -> None:
-        """Repaint the window with the CV palette; a no-op while it is unchanged."""
-        if theme == self._applied_theme:
-            return
-        self._applied_theme = theme
-        # on the application, not the window, so menus and dialogs follow too
-        QApplication.instance().setStyleSheet(style_for(theme))
-
     def update_preview(self) -> None:
         cv = self.collect()
-        self.apply_theme(cv.theme)
         try:
             self._pdf_cache = render_bytes(cv)
         except Exception as exc:  # keep the UI alive on any rendering hiccup
@@ -771,7 +727,7 @@ def main() -> int:
     os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
-    app.setStyleSheet(style_for(Theme()))
+    app.setFont(fluent.font())
     window = MainWindow()
     window.show()
     return app.exec()
