@@ -7,9 +7,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pymupdf
-from PySide6.QtCore import QSize, Qt, QTimer
-from PySide6.QtGui import QAction, QColor, QImage, QKeySequence, QPixmap
+from PySide6.QtCore import QBuffer, QByteArray, QSize, Qt, QTimer
+from PySide6.QtGui import QAction, QColor, QKeySequence, QPixmap
+from PySide6.QtPdf import QPdfDocument
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -409,7 +409,10 @@ class MainWindow(QMainWindow):
         self.preview_page = 0
         self.page_count = 1
         self._pdf_cache = b""
+        self._pdf_bytes = QByteArray()
         self._styled = False
+        self.document = QPdfDocument(self)
+        self.buffer = QBuffer(self)
 
         self.refresh_timer = QTimer(self)
         self.refresh_timer.setSingleShot(True)
@@ -646,26 +649,34 @@ class MainWindow(QMainWindow):
         except Exception as exc:  # keep the UI alive on any rendering hiccup
             self.preview.setText(f"Preview error: {exc}")
             return
-        document = pymupdf.open(stream=self._pdf_cache, filetype="pdf")
-        self.page_count = max(1, document.page_count)
+        self._load_preview()
+        self.page_count = max(1, self.document.pageCount())
         self.preview_page = min(self.preview_page, self.page_count - 1)
-        document.close()
         self.render_preview_page()
 
+    def _load_preview(self) -> None:
+        """Hand the freshly rendered PDF to QtPdf.
+
+        Both the buffer and the byte array it wraps have to outlive this call -
+        QPdfDocument keeps reading from the device while it renders pages.
+        """
+        self.document.close()
+        self.buffer.close()
+        self._pdf_bytes = QByteArray(self._pdf_cache)
+        self.buffer.setData(self._pdf_bytes)
+        self.buffer.open(QBuffer.ReadOnly)
+        self.document.load(self.buffer)
+
     def render_preview_page(self) -> None:
-        if not self._pdf_cache:
+        if not self.document.pageCount():
             return
-        document = pymupdf.open(stream=self._pdf_cache, filetype="pdf")
-        zoom = self.zoom.value() / 100.0
-        pixmap_data = document[self.preview_page].get_pixmap(dpi=int(110 * zoom))
-        image = QImage(
-            pixmap_data.samples, pixmap_data.width, pixmap_data.height,
-            pixmap_data.stride, QImage.Format_RGB888,
-        )
-        self.preview.setPixmap(QPixmap.fromImage(image.copy()))
-        self.preview.setMinimumSize(QSize(pixmap_data.width, pixmap_data.height))
+        # 110 dpi at 100 % zoom, the scale the preview was tuned for
+        scale = 110.0 * self.zoom.value() / 100.0 / 72.0
+        points = self.document.pagePointSize(self.preview_page)
+        size = QSize(round(points.width() * scale), round(points.height() * scale))
+        self.preview.setPixmap(QPixmap.fromImage(self.document.render(self.preview_page, size)))
+        self.preview.setMinimumSize(size)
         self.page_label.setText(f"Page {self.preview_page + 1} / {self.page_count}")
-        document.close()
 
     # ---------- actions ----------
     def action_new(self) -> None:
