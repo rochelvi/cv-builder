@@ -122,6 +122,7 @@ struct FormImpl : FormHost {
     HFONT regular = nullptr;
     HFONT strong = nullptr;
     HBRUSH paneBrush = nullptr;
+    HBRUSH cardBrush = nullptr;
     HBRUSH fieldBrush = nullptr;
     UINT dpi = 96;
     int scrollY = 0;
@@ -170,6 +171,11 @@ struct FormImpl : FormHost {
 
     void relayout();
     void paint();
+    // Labels are transparent-looking but painted opaque: a static that never
+    // erases leaves its old glyphs behind whenever it moves or its text
+    // changes. Tells which surface a control sits on so it erases to match.
+    bool onCard(HWND control) const;
+    void refresh();  // repaint the body and every control in it
     void updateScrollBar();
     void scrollTo(int value);
     void applyPreset(int index);
@@ -631,6 +637,24 @@ private:
 
 // -------------------------------------------------------------- the layout
 
+bool FormImpl::onCard(HWND control) const {
+    if (!control || frames.empty()) return false;
+    RECT box{};
+    GetWindowRect(control, &box);
+    MapWindowPoints(HWND_DESKTOP, body, reinterpret_cast<POINT*>(&box), 2);
+    POINT centre{(box.left + box.right) / 2, (box.top + box.bottom) / 2};
+    for (const RECT& frame : frames)
+        if (PtInRect(&frame, centre)) return true;
+    return false;
+}
+
+void FormImpl::refresh() {
+    // RDW_ALLCHILDREN: the controls moved with the body, so their pixels are
+    // stale too; without this they keep whatever the last blit left them.
+    RedrawWindow(body, nullptr, nullptr,
+                 RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+}
+
 void FormImpl::relayout() {
     RECT client{};
     GetClientRect(pane, &client);
@@ -643,6 +667,10 @@ void FormImpl::relayout() {
     const int section = scale(kSectionGap);
     const int x = margin;
     int y = margin;
+
+    // Controls are about to be moved one by one; without this each SetWindowPos
+    // repaints on its own and the pane visibly churns.
+    SetWindowRedraw(body, FALSE);
 
     auto putHeading = [&](Heading which) {
         place(headings[which], x, y, width, heading);
@@ -723,9 +751,14 @@ void FormImpl::relayout() {
     education.collectFrames(frames);
 
     scrollY = std::min(scrollY, std::max(0, contentHeight - static_cast<int>(client.bottom)));
-    SetWindowPos(body, nullptr, 0, -scrollY, client.right, contentHeight,
-                 SWP_NOZORDER | SWP_NOACTIVATE);
+    // Never leave a strip of the pane uncovered: the pane paints nothing of
+    // its own, so anything the body does not reach keeps stale pixels.
+    const int bodyHeight = std::max(contentHeight, static_cast<int>(client.bottom) + scrollY);
+    SetWindowPos(body, nullptr, 0, -scrollY, client.right, bodyHeight,
+                 SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS);
+    SetWindowRedraw(body, TRUE);
     updateScrollBar();
+    refresh();
 }
 
 void FormImpl::updateScrollBar() {
@@ -748,32 +781,58 @@ void FormImpl::scrollTo(int value) {
     value = std::max(0, std::min(limit, value));
     if (value == scrollY) return;
     scrollY = value;
-    SetWindowPos(body, nullptr, 0, -scrollY, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    // Let Windows copy the pixels: every control here erases its own
+    // background, so the blitted image is already correct, and only the strip
+    // that scrolls into view needs painting. Repainting the whole pane instead
+    // makes the text flicker on every notch of the wheel.
+    SetWindowPos(body, nullptr, 0, -scrollY, 0, 0,
+                 SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
     updateScrollBar();
+    UpdateWindow(body);  // paint the newly exposed strip before the next notch
 }
 
 void FormImpl::paint() {
     PAINTSTRUCT ps;
     HDC dc = BeginPaint(body, &ps);
+    const int width = ps.rcPaint.right - ps.rcPaint.left;
+    const int height = ps.rcPaint.bottom - ps.rcPaint.top;
+    if (width <= 0 || height <= 0) {
+        EndPaint(body, &ps);
+        return;
+    }
+
+    // Draw into a bitmap and blit once: the pane repaints in full on every
+    // scroll, and painting straight to the screen flickers badly.
+    HDC memory = CreateCompatibleDC(dc);
+    HBITMAP bitmap = CreateCompatibleBitmap(dc, width, height);
+    HGDIOBJ oldBitmap = SelectObject(memory, bitmap);
+    SetViewportOrgEx(memory, -ps.rcPaint.left, -ps.rcPaint.top, nullptr);
+
     HBRUSH background = CreateSolidBrush(ui().pane);
-    FillRect(dc, &ps.rcPaint, background);
+    FillRect(memory, &ps.rcPaint, background);
     DeleteObject(background);
 
-    HBRUSH cardBrush = CreateSolidBrush(ui().card);
+    HBRUSH card = CreateSolidBrush(ui().card);
     HPEN edge = CreatePen(PS_SOLID, 1, ui().cardEdge);
-    HGDIOBJ oldBrush = SelectObject(dc, cardBrush);
-    HGDIOBJ oldPen = SelectObject(dc, edge);
+    HGDIOBJ oldBrush = SelectObject(memory, card);
+    HGDIOBJ oldPen = SelectObject(memory, edge);
     const int radius = scale(8);
     for (const RECT& frame : frames) {
         RECT test = frame;
         RECT hit;
         if (!IntersectRect(&hit, &test, &ps.rcPaint)) continue;
-        RoundRect(dc, frame.left, frame.top, frame.right, frame.bottom, radius, radius);
+        RoundRect(memory, frame.left, frame.top, frame.right, frame.bottom, radius, radius);
     }
-    SelectObject(dc, oldBrush);
-    SelectObject(dc, oldPen);
-    DeleteObject(cardBrush);
+    SelectObject(memory, oldBrush);
+    SelectObject(memory, oldPen);
+    DeleteObject(card);
     DeleteObject(edge);
+
+    SetViewportOrgEx(memory, 0, 0, nullptr);
+    BitBlt(dc, ps.rcPaint.left, ps.rcPaint.top, width, height, memory, 0, 0, SRCCOPY);
+    SelectObject(memory, oldBitmap);
+    DeleteObject(bitmap);
+    DeleteDC(memory);
     EndPaint(body, &ps);
 }
 
@@ -857,12 +916,16 @@ LRESULT CALLBACK bodyProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
             if (impl) impl->paint();
             return 0;
         case WM_CTLCOLORSTATIC: {
-            // NULL_BRUSH leaves the pane's own painting (including card
-            // rectangles) showing through behind the label.
+            // Paint opaque in whichever colour the label is standing on. A
+            // transparent static never clears itself, so old glyphs pile up
+            // under the new ones every time it moves or its text changes.
             HDC dc = reinterpret_cast<HDC>(wParam);
-            SetBkMode(dc, TRANSPARENT);
+            if (!impl) break;
+            const bool card = impl->onCard(reinterpret_cast<HWND>(lParam));
+            SetBkMode(dc, OPAQUE);
+            SetBkColor(dc, card ? ui().card : ui().pane);
             SetTextColor(dc, ui().text);
-            return reinterpret_cast<LRESULT>(GetStockObject(NULL_BRUSH));
+            return reinterpret_cast<LRESULT>(card ? impl->cardBrush : impl->paneBrush);
         }
         case WM_CTLCOLOREDIT:
         case WM_CTLCOLORLISTBOX: {
@@ -1009,6 +1072,7 @@ bool FormPane::create(HWND parent, HINSTANCE instance, std::function<void()> onC
     impl.regular = makeFont(impl.dpi, false);
     impl.strong = makeFont(impl.dpi, true);
     impl.paneBrush = CreateSolidBrush(ui().pane);
+    impl.cardBrush = CreateSolidBrush(ui().card);
     impl.fieldBrush = CreateSolidBrush(RGB(255, 255, 255));
 
     hwnd_ = CreateWindowExW(0, L"CVBFormPane", L"",
