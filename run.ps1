@@ -1,18 +1,16 @@
-# Runs CV Builder from source (needs Python 3.10+ installed).
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $scriptPath
+# Builds if needed, then starts the app.
+param(
+    [string]$Distro = "Ubuntu"
+)
 
-if (-not (Test-Path ".venv")) {
-    try {
-        py -3 -m venv .venv
-    } catch {
-        python -m venv .venv
-    }
-    & ".venv\Scripts\Activate.ps1"
-    python -m pip install --upgrade pip
-    pip install -r requirements.txt
-} else {
-    & ".venv\Scripts\Activate.ps1"
+$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
+
+$exe = "build\CVBuilder.exe"
+$sources = Get-ChildItem src, res -File -ErrorAction SilentlyContinue
+$newest = ($sources | Sort-Object LastWriteTime -Descending | Select-Object -First 1).LastWriteTime
+if (-not (Test-Path $exe) -or (Get-Item $exe).LastWriteTime -lt $newest) {
+    & "$PSScriptRoot\build.ps1" -Distro $Distro
 }
 
-python main.py
+Start-Process $exe
