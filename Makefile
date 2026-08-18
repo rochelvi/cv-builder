@@ -2,16 +2,22 @@
 #
 #   make            -> build/CVBuilder.exe and build/cvcli.exe
 #   make cli        -> just the console renderer (handy for quick checks)
-#   make CXX=g++    -> native build, if you ever run this on Windows itself
+#   make CXX=g++    -> force the host compiler
+#
+# Under MSYS2 (the UCRT64 / MINGW64 shell) plain `make` is enough: the
+# cross-prefixed tools do not exist there, so the host g++ and windres — which
+# already target Windows — are picked up automatically.
 #
 # Everything links statically, so the .exe files run on a machine with no
 # runtime installed.
 
-# Plain `:=`, not `?=`: make has a built-in default for CXX, so `?=` would
-# quietly leave it as the host g++. Passing CXX=... on the command line still
-# wins, which is what the native-build note above relies on.
-CXX     := x86_64-w64-mingw32-g++
-WINDRES := x86_64-w64-mingw32-windres
+# Prefer the cross-compiler when it is on PATH (WSL / Linux), otherwise fall
+# back to the host toolchain (MSYS2, or any native mingw-w64 shell). Plain `:=`,
+# not `?=`: make has a built-in default for CXX, so `?=` would quietly leave it
+# as the host g++ even on Linux. Passing CXX=... on the command line still wins.
+CROSS   := x86_64-w64-mingw32
+CXX     := $(if $(shell command -v $(CROSS)-g++ 2>/dev/null),$(CROSS)-g++,g++)
+WINDRES := $(if $(shell command -v $(CROSS)-windres 2>/dev/null),$(CROSS)-windres,windres)
 BUILD   ?= build
 
 # gnu++17 rather than c++17: strict ISO mode hides the MSVC-style _wfopen that

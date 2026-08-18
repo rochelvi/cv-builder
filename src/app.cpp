@@ -176,8 +176,10 @@ void App::updatePreviewControls() {
     wchar_t buffer[64];
     swprintf(buffer, 64, L"Стр. %d / %d", preview.page() + 1, preview.pageCount());
     SetWindowTextW(pageLabel, buffer);
+    InvalidateRect(pageLabel, nullptr, TRUE);
     swprintf(buffer, 64, L"%d %%", preview.zoom());
     SetWindowTextW(zoomLabel, buffer);
+    InvalidateRect(zoomLabel, nullptr, TRUE);
     EnableWindow(prevPage, preview.page() > 0);
     EnableWindow(nextPage, preview.page() + 1 < preview.pageCount());
 }
@@ -446,10 +448,16 @@ LRESULT CALLBACK mainProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
             return 1;
         }
         case WM_CTLCOLORSTATIC: {
+            // Opaque, in the toolbar's own colour. The page and zoom labels
+            // change text as the user pages or zooms, and a transparent static
+            // never wipes what it drew last time: the old digits stay under the
+            // new ones and ClearType turns the overlap into coloured mush.
             HDC dc = reinterpret_cast<HDC>(wParam);
-            SetBkMode(dc, TRANSPARENT);
+            if (!app) break;
+            SetBkMode(dc, OPAQUE);
+            SetBkColor(dc, ui().window);
             SetTextColor(dc, ui().text);
-            return reinterpret_cast<LRESULT>(GetStockObject(NULL_BRUSH));
+            return reinterpret_cast<LRESULT>(app->background);
         }
         case WM_TIMER:
             if (app && wParam == kRefreshTimer) {
