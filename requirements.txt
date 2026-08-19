@@ -1,2 +1,0 @@
-PySide6>=6.6
-reportlab>=4.0

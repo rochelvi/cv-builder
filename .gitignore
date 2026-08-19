@@ -1,5 +1,5 @@
-__pycache__/
-.venv/
 build/
-dist/
-*.spec
+*.o
+*.d
+*.exe
+*.pdf

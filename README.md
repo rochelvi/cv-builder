@@ -1,50 +1,97 @@
 # CV Builder
 
-A Windows 11 desktop app that builds your CV using the dark template from `cv.pdf`.
-Fill in the form on the left, watch the live preview on the right, export a
-pixel-faithful A4 PDF.
+Десктопное приложение под Windows: слева форма редактирования резюме, справа
+живой предпросмотр, на выходе — A4-PDF по тёмному шаблону. Данные хранятся в
+JSON, так что можно держать несколько версий резюме.
 
-## Features
+Чистый Win32 + Direct2D на C++17. **Ноль внешних зависимостей**: свой парсер
+JSON, свой парсер и сабсеттер TrueType, свой генератор PDF. Один статически
+слинкованный `.exe` примерно на 900 КБ, который запускается на любой Windows 10/11
+без установленных рантаймов.
 
-- Every section of the template is editable: header/contacts, summary, experience
-  (jobs with bullet points), technical skills (two-column groups, accent highlight per
-  skill), soft skills, education & certifications, volunteer work, personal lab.
-- Full colour control: 8 colour roles (background, rules, headings, body, secondary text,
-  faint text, accent 1, accent 2) editable with a colour picker, plus ready-made presets
-  (dark original, midnight blue, graphite orange, paper light, warm cream). Nothing is
-  hardcoded any more — the palette is stored with your CV JSON.
-- Add / remove / reorder jobs, bullets, skills, groups and entries.
-- Live PDF preview with zoom and page navigation; automatic overflow to page 2.
-- Save/load your data as JSON (`Ctrl+S` / `Ctrl+O`) so you can keep several CV versions.
-- Export PDF (`Ctrl+E`) and it opens in your default viewer.
-- Cyrillic is fully supported (uses Arial from `C:\Windows\Fonts`, metrically identical
-  to the template's Helvetica).
+## Возможности
 
-## Run from source
+- Редактируются все секции шаблона: шапка и контакты, «о себе», опыт работы
+  (должности с пунктами), технические навыки (группы в две колонки, у каждого
+  навыка флаг выделения), soft skills, образование и сертификации,
+  волонтёрство, личная лаборатория.
+- Полный контроль цвета: 8 ролей (фон, разделители, заголовки, текст,
+  вторичный текст, приглушённый текст, акцент 1, акцент 2) через системный
+  color picker, плюс 5 готовых пресетов. Палитра хранится вместе с резюме.
+- Добавление, удаление и перестановка работ, пунктов, навыков, групп и записей.
+- Живой предпросмотр с зумом 50–300 % и навигацией по страницам; перенос на
+  вторую страницу происходит автоматически.
+- Сохранение и загрузка JSON (`Ctrl+S` / `Ctrl+O`), экспорт PDF (`Ctrl+E`) —
+  готовый файл сразу открывается в системном просмотрщике.
+- Полная поддержка кириллицы: шрифт берётся из системы (Arial, метрически
+  совпадающий с Helvetica оригинального шаблона) и внедряется в PDF
+  подмножеством — вместе с картой ToUnicode, поэтому из PDF корректно
+  копируется текст.
 
-Requires Python 3.10+ (from python.org or the Microsoft Store).
+## Сборка
+
+Кросс-компиляция из WSL. Разово поставить тулчейн:
+
+```bash
+wsl -d Ubuntu -- sudo apt install -y g++-mingw-w64-x86-64 make
+```
+
+Дальше из корня проекта:
+
+```powershell
+.\build.ps1
+```
+
+Результат — `build\CVBuilder.exe`. `.\run.ps1` пересоберёт при необходимости и
+запустит. Если хочется собирать вручную:
+
+```bash
+make            # CVBuilder.exe и cvcli.exe
+make cli        # только консольный рендерер
+make clean
+```
+
+Собрать нативно на Windows (MSYS2, Visual Studio с mingw и т. п.) можно тем же
+Makefile: `make CXX=g++`.
+
+## Консольный рендерер
+
+`cvcli.exe` рендерит JSON в PDF без графического интерфейса — удобно для
+скриптов и для проверки раскладки:
 
 ```
-run.bat
+cvcli.exe sample_cv.json out.pdf
+cvcli.exe sample_cv.json out.pdf --dump-ops ops.json
 ```
 
-The first run creates a virtual environment and installs the dependencies.
+`--dump-ops` выгружает полный список примитивов отрисовки (каждая строка
+текста с координатами, размером и цветом) — этим сверялась идентичность
+раскладки при переносе с прежней реализации.
 
-## Build a standalone .exe
+## Структура
 
-```
-build.bat
-```
-
-The result is `dist\CVBuilder.exe` — a single file you can copy anywhere and run
-without Python installed.
-
-## Files
-
-| File | Purpose |
+| Файл | Назначение |
 | --- | --- |
-| `main.py` | Entry point |
-| `cvbuilder/model.py` | CV data model, `Theme` palette + presets, JSON save/load, default content |
-| `cvbuilder/renderer.py` | PDF renderer (ReportLab) reproducing the template geometry and colours |
-| `cvbuilder/app.py` | PySide6 GUI: form editor + live preview |
-| `sample_cv.json` | The original CV content, ready to open |
+| `src/json.*` | Минимальный JSON: разбор, сборка, вывод в UTF-8 |
+| `src/model.*` | Модель резюме, палитра и пресеты, чтение и запись файла |
+| `src/font.*` | Парсер TrueType: cmap, метрики, сабсеттинг для внедрения в PDF |
+| `src/layout.*` | Движок раскладки: вся геометрия шаблона, переносы, разбиение на страницы |
+| `src/pdf.*` | Генератор PDF: объекты, xref, Type0/CIDFontType2, ToUnicode |
+| `src/ui.h` | Общие объявления интерфейса |
+| `src/form.*` | Панель редактора: динамические списки, карточки, прокрутка |
+| `src/preview.*` | Предпросмотр на Direct2D/DirectWrite |
+| `src/app.cpp` | Главное окно, меню, файловые операции |
+| `src/cli.cpp` | Консольный рендерер |
+| `res/` | Манифест (visual styles, per-monitor DPI) и версия |
+| `sample_cv.json` | Пример резюме, подхватывается при старте |
+
+Архитектура однонаправленная: `app → layout → font/model`. Движок раскладки не
+знает ни про PDF, ни про окна — он выдаёт список примитивов, а генератор PDF и
+предпросмотр это два бэкенда для одного и того же списка. Поэтому то, что видно
+на экране, и то, что попадает в PDF, не могут разойтись: рисуются одни и те же
+глифы с одними и теми же метриками.
+
+## Что дальше
+
+Внешний вид интерфейса пока намеренно простой (светлая тема, стандартные
+контролы Common Controls 6). Оформление — следующий заход.
