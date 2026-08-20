@@ -507,6 +507,17 @@ LRESULT CALLBACK mainProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
             FillRect(reinterpret_cast<HDC>(wParam), &client, app->background);
             return 1;
         }
+        case WM_PRINTCLIENT: {
+            // A themed control asks its parent for the pixels under its own
+            // rounded corners through DrawThemeParentBackground, which sends
+            // this. Left to DefWindowProc it falls back to COLOR_BTNFACE and
+            // outlines every button in light grey.
+            if (!app) break;
+            RECT client{};
+            GetClientRect(window, &client);
+            FillRect(reinterpret_cast<HDC>(wParam), &client, app->background);
+            return 0;
+        }
         case WM_PAINT: {
             if (!app) break;
             PAINTSTRUCT ps;

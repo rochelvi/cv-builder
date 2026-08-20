@@ -169,6 +169,9 @@ struct FormImpl : FormHost {
 
     void relayout();
     void paint();
+    // The pane surface and the card rounds, in body coordinates. Shared by
+    // WM_PAINT and by the themed controls asking what is behind their corners.
+    void drawBackground(HDC dc, const RECT& area);
     // Labels are transparent-looking but painted opaque: a static that never
     // erases leaves its old glyphs behind whenever it moves or its text
     // changes. Tells which surface a control sits on so it erases to match.
@@ -905,6 +908,28 @@ void FormImpl::scrollTo(int value) {
     UpdateWindow(body);  // paint the newly exposed strip before the next notch
 }
 
+void FormImpl::drawBackground(HDC dc, const RECT& area) {
+    HBRUSH background = CreateSolidBrush(ui().pane);
+    FillRect(dc, &area, background);
+    DeleteObject(background);
+
+    HBRUSH card = CreateSolidBrush(ui().card);
+    HPEN edge = CreatePen(PS_SOLID, 1, ui().cardEdge);
+    HGDIOBJ oldBrush = SelectObject(dc, card);
+    HGDIOBJ oldPen = SelectObject(dc, edge);
+    const int radius = scale(8);
+    for (const RECT& frame : frames) {
+        RECT test = frame;
+        RECT hit;
+        if (!IntersectRect(&hit, &test, &area)) continue;
+        RoundRect(dc, frame.left, frame.top, frame.right, frame.bottom, radius, radius);
+    }
+    SelectObject(dc, oldBrush);
+    SelectObject(dc, oldPen);
+    DeleteObject(card);
+    DeleteObject(edge);
+}
+
 void FormImpl::paint() {
     PAINTSTRUCT ps;
     HDC dc = BeginPaint(body, &ps);
@@ -921,27 +946,7 @@ void FormImpl::paint() {
     HBITMAP bitmap = CreateCompatibleBitmap(dc, width, height);
     HGDIOBJ oldBitmap = SelectObject(memory, bitmap);
     SetViewportOrgEx(memory, -ps.rcPaint.left, -ps.rcPaint.top, nullptr);
-
-    HBRUSH background = CreateSolidBrush(ui().pane);
-    FillRect(memory, &ps.rcPaint, background);
-    DeleteObject(background);
-
-    HBRUSH card = CreateSolidBrush(ui().card);
-    HPEN edge = CreatePen(PS_SOLID, 1, ui().cardEdge);
-    HGDIOBJ oldBrush = SelectObject(memory, card);
-    HGDIOBJ oldPen = SelectObject(memory, edge);
-    const int radius = scale(8);
-    for (const RECT& frame : frames) {
-        RECT test = frame;
-        RECT hit;
-        if (!IntersectRect(&hit, &test, &ps.rcPaint)) continue;
-        RoundRect(memory, frame.left, frame.top, frame.right, frame.bottom, radius, radius);
-    }
-    SelectObject(memory, oldBrush);
-    SelectObject(memory, oldPen);
-    DeleteObject(card);
-    DeleteObject(edge);
-
+    drawBackground(memory, ps.rcPaint);
     SetViewportOrgEx(memory, 0, 0, nullptr);
     BitBlt(dc, ps.rcPaint.left, ps.rcPaint.top, width, height, memory, 0, 0, SRCCOPY);
     SelectObject(memory, oldBitmap);
@@ -1029,6 +1034,16 @@ LRESULT CALLBACK bodyProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
         case WM_PAINT:
             if (impl) impl->paint();
             return 0;
+        case WM_PRINTCLIENT: {
+            // DrawThemeParentBackground: a rounded control asking what sits
+            // under its corners. Without an answer it assumes COLOR_BTNFACE
+            // and rings itself in light grey on the dark pane.
+            if (!impl) break;
+            RECT client{};
+            GetClientRect(window, &client);
+            impl->drawBackground(reinterpret_cast<HDC>(wParam), client);
+            return 0;
+        }
         case WM_CTLCOLORSTATIC: {
             // Paint opaque in whichever colour the label is standing on. A
             // transparent static never clears itself, so old glyphs pile up
