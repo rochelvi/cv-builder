@@ -74,8 +74,8 @@ struct SectionRef {
     int order = 0;
 };
 
-// Every section the renderer knows how to draw, in the order it used before
-// the running order became editable.
+// Every section the renderer knows how to draw, in the order a CV gets before
+// the running order is edited.
 constexpr int kSectionCount = 8;
 extern const char* const kSectionIds[kSectionCount];
 extern const wchar_t* const kSectionEditorNames[kSectionCount];  // labels in the editor

@@ -24,25 +24,25 @@ const wchar_t* const kThemeLabels[TR_Count] = {
 };
 
 const char* const kSectionIds[kSectionCount] = {
-    "summary", "jobs", "skill_groups", "soft_skills", "studies", "education", "volunteering",
-    "lab",
+    "summary", "studies", "jobs", "skill_groups", "soft_skills", "education", "lab",
+    "volunteering",
 };
 
 const wchar_t* const kSectionEditorNames[kSectionCount] = {
     L"О себе",
+    L"Учёба (подробно)",
     L"Опыт работы",
     L"Технические навыки",
     L"Soft skills",
-    L"Учёба (подробно)",
     L"Сертификаты и курсы",
-    L"Волонтёрство",
     L"Личная лаборатория",
+    L"Волонтёрство",
 };
 
 namespace {
 const char* const kSectionLabels[kSectionCount] = {
-    "Summary", "Experience", "Technical Skills", "Soft Skills", "Education",
-    "Certifications & Courses", "Volunteer Work", "Personal Lab",
+    "Summary", "Education", "Experience", "Technical Skills", "Soft Skills",
+    "Certifications & Courses", "Personal Lab", "Volunteer Work",
 };
 }  // namespace
 
