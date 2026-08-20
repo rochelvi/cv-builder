@@ -101,9 +101,11 @@ void themeControl(HWND control, bool dark) {
 
     wchar_t cls[64] = {};
     GetClassNameW(control, cls, static_cast<int>(std::size(cls)));
+    // "DarkMode_CFD" is what darkens the frame of a drop-down. Everything
+    // else, an edit box included, wants "DarkMode_Explorer": it draws the same
+    // frame and is the only one that also darkens a control's own scroll bars.
     const bool combo = _wcsicmp(cls, L"ComboBox") == 0;
-    const bool field = combo || _wcsicmp(cls, L"Edit") == 0;
-    SetWindowTheme(control, dark ? (field ? L"DarkMode_CFD" : L"DarkMode_Explorer") : nullptr,
+    SetWindowTheme(control, dark ? (combo ? L"DarkMode_CFD" : L"DarkMode_Explorer") : nullptr,
                    nullptr);
 
     // A drop-down is three windows; the two inner ones need the same treatment
