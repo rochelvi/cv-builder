@@ -27,10 +27,11 @@ CXXFLAGS := -std=gnu++17 -O2 -Wall -Wextra -Wno-unknown-pragmas \
             -ffunction-sections -fdata-sections
 LDFLAGS  := -static -static-libgcc -static-libstdc++ -Wl,--gc-sections
 LIBS     := -lshell32 -lole32 -luuid
-GUI_LIBS := -lcomctl32 -lcomdlg32 -ld2d1 -ldwrite -ldwmapi -lgdi32 -luser32 -lshlwapi
+GUI_LIBS := -lcomctl32 -lcomdlg32 -ld2d1 -ldwrite -ldwmapi -luxtheme -lgdi32 -luser32 -lshlwapi \
+            -ladvapi32
 
 CORE_SRC := src/json.cpp src/model.cpp src/font.cpp src/layout.cpp src/pdf.cpp
-GUI_SRC  := src/app.cpp src/form.cpp src/preview.cpp
+GUI_SRC  := src/app.cpp src/form.cpp src/preview.cpp src/theme.cpp
 CLI_SRC  := src/cli.cpp
 
 CORE_OBJ := $(CORE_SRC:%.cpp=$(BUILD)/%.o)

@@ -37,11 +37,6 @@ std::string narrow(const std::wstring& text) {
     return out;
 }
 
-const UiTheme& ui() {
-    static const UiTheme theme;
-    return theme;
-}
-
 int scaled(int value, UINT dpi) { return MulDiv(value, static_cast<int>(dpi), 96); }
 
 namespace {
@@ -174,6 +169,9 @@ struct FormImpl : FormHost {
 
     void relayout();
     void paint();
+    // The pane surface and the card rounds, in body coordinates. Shared by
+    // WM_PAINT and by the themed controls asking what is behind their corners.
+    void drawBackground(HDC dc, const RECT& area);
     // Labels are transparent-looking but painted opaque: a static that never
     // erases leaves its old glyphs behind whenever it moves or its text
     // changes. Tells which surface a control sits on so it erases to match.
@@ -198,6 +196,7 @@ HWND makeEdit(FormHost& host, const wchar_t* cue, bool multiline = false) {
                                 nullptr, nullptr);
     SendMessageW(edit, WM_SETFONT, reinterpret_cast<WPARAM>(host.font()), TRUE);
     if (cue && *cue) SendMessageW(edit, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(cue));
+    applyThemeToControl(edit);
     return edit;
 }
 
@@ -206,6 +205,7 @@ HWND makeButton(FormHost& host, const wchar_t* label, DWORD extra = 0) {
                                   WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON | extra, 0, 0,
                                   10, 10, host.content(), nullptr, nullptr, nullptr);
     SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(host.font()), TRUE);
+    applyThemeToControl(button);
     return button;
 }
 
@@ -214,6 +214,7 @@ HWND makeCheck(FormHost& host, const wchar_t* label) {
                                WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 10, 10,
                                host.content(), nullptr, nullptr, nullptr);
     SendMessageW(box, WM_SETFONT, reinterpret_cast<WPARAM>(host.font()), TRUE);
+    applyThemeToControl(box);
     return box;
 }
 
@@ -222,6 +223,7 @@ HWND makeLabel(FormHost& host, const wchar_t* text, bool strong) {
                                  host.content(), nullptr, nullptr, nullptr);
     SendMessageW(label, WM_SETFONT,
                  reinterpret_cast<WPARAM>(strong ? host.boldFont() : host.font()), TRUE);
+    applyThemeToControl(label);
     return label;
 }
 
@@ -702,7 +704,7 @@ public:
         subtitle_ = makeEdit(host, L"Учреждение, год / статус");
         writeText(title_, item_.title);
         writeText(subtitle_, item_.subtitle);
-        highlight_ = makeCheck(host, L"выделить (синим)");
+        highlight_ = makeCheck(host, L"выделить");
         Button_SetCheck(highlight_, item_.highlight ? BST_CHECKED : BST_UNCHECKED);
     }
 
@@ -906,6 +908,28 @@ void FormImpl::scrollTo(int value) {
     UpdateWindow(body);  // paint the newly exposed strip before the next notch
 }
 
+void FormImpl::drawBackground(HDC dc, const RECT& area) {
+    HBRUSH background = CreateSolidBrush(ui().pane);
+    FillRect(dc, &area, background);
+    DeleteObject(background);
+
+    HBRUSH card = CreateSolidBrush(ui().card);
+    HPEN edge = CreatePen(PS_SOLID, 1, ui().cardEdge);
+    HGDIOBJ oldBrush = SelectObject(dc, card);
+    HGDIOBJ oldPen = SelectObject(dc, edge);
+    const int radius = scale(8);
+    for (const RECT& frame : frames) {
+        RECT test = frame;
+        RECT hit;
+        if (!IntersectRect(&hit, &test, &area)) continue;
+        RoundRect(dc, frame.left, frame.top, frame.right, frame.bottom, radius, radius);
+    }
+    SelectObject(dc, oldBrush);
+    SelectObject(dc, oldPen);
+    DeleteObject(card);
+    DeleteObject(edge);
+}
+
 void FormImpl::paint() {
     PAINTSTRUCT ps;
     HDC dc = BeginPaint(body, &ps);
@@ -922,27 +946,7 @@ void FormImpl::paint() {
     HBITMAP bitmap = CreateCompatibleBitmap(dc, width, height);
     HGDIOBJ oldBitmap = SelectObject(memory, bitmap);
     SetViewportOrgEx(memory, -ps.rcPaint.left, -ps.rcPaint.top, nullptr);
-
-    HBRUSH background = CreateSolidBrush(ui().pane);
-    FillRect(memory, &ps.rcPaint, background);
-    DeleteObject(background);
-
-    HBRUSH card = CreateSolidBrush(ui().card);
-    HPEN edge = CreatePen(PS_SOLID, 1, ui().cardEdge);
-    HGDIOBJ oldBrush = SelectObject(memory, card);
-    HGDIOBJ oldPen = SelectObject(memory, edge);
-    const int radius = scale(8);
-    for (const RECT& frame : frames) {
-        RECT test = frame;
-        RECT hit;
-        if (!IntersectRect(&hit, &test, &ps.rcPaint)) continue;
-        RoundRect(memory, frame.left, frame.top, frame.right, frame.bottom, radius, radius);
-    }
-    SelectObject(memory, oldBrush);
-    SelectObject(memory, oldPen);
-    DeleteObject(card);
-    DeleteObject(edge);
-
+    drawBackground(memory, ps.rcPaint);
     SetViewportOrgEx(memory, 0, 0, nullptr);
     BitBlt(dc, ps.rcPaint.left, ps.rcPaint.top, width, height, memory, 0, 0, SRCCOPY);
     SelectObject(memory, oldBitmap);
@@ -1030,6 +1034,16 @@ LRESULT CALLBACK bodyProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
         case WM_PAINT:
             if (impl) impl->paint();
             return 0;
+        case WM_PRINTCLIENT: {
+            // DrawThemeParentBackground: a rounded control asking what sits
+            // under its corners. Without an answer it assumes COLOR_BTNFACE
+            // and rings itself in light grey on the dark pane.
+            if (!impl) break;
+            RECT client{};
+            GetClientRect(window, &client);
+            impl->drawBackground(reinterpret_cast<HDC>(wParam), client);
+            return 0;
+        }
         case WM_CTLCOLORSTATIC: {
             // Paint opaque in whichever colour the label is standing on. A
             // transparent static never clears itself, so old glyphs pile up
@@ -1046,7 +1060,7 @@ LRESULT CALLBACK bodyProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
         case WM_CTLCOLORLISTBOX: {
             HDC dc = reinterpret_cast<HDC>(wParam);
             SetTextColor(dc, ui().text);
-            SetBkColor(dc, RGB(255, 255, 255));
+            SetBkColor(dc, ui().field);
             return reinterpret_cast<LRESULT>(impl ? impl->fieldBrush : nullptr);
         }
         case WM_DRAWITEM: {
@@ -1188,7 +1202,7 @@ bool FormPane::create(HWND parent, HINSTANCE instance, std::function<void()> onC
     impl.strong = makeFont(impl.dpi, true);
     impl.paneBrush = CreateSolidBrush(ui().pane);
     impl.cardBrush = CreateSolidBrush(ui().card);
-    impl.fieldBrush = CreateSolidBrush(RGB(255, 255, 255));
+    impl.fieldBrush = CreateSolidBrush(ui().field);
 
     hwnd_ = CreateWindowExW(0, L"CVBFormPane", L"",
                             WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPCHILDREN, 0, 0, 10, 10,
@@ -1216,6 +1230,7 @@ bool FormPane::create(HWND parent, HINSTANCE instance, std::function<void()> onC
                                       WS_VSCROLL,
                                   0, 0, 10, 200, impl.body, nullptr, instance, nullptr);
     SendMessageW(impl.preset, WM_SETFONT, reinterpret_cast<WPARAM>(impl.regular), TRUE);
+    applyThemeToControl(impl.preset);
     for (const Preset& item : presets())
         ComboBox_AddString(impl.preset, item.name);
 
@@ -1365,6 +1380,22 @@ void FormPane::setDpi(UINT dpi) {
     DeleteObject(oldRegular);
     DeleteObject(oldStrong);
     impl.relayout();
+}
+
+void FormPane::applyTheme() {
+    FormImpl& impl = *impl_;
+    // The control tree itself is re-themed by the main window; only the
+    // brushes this pane hands back from WM_CTLCOLOR* are ours to rebuild.
+    HBRUSH pane = CreateSolidBrush(ui().pane);
+    HBRUSH card = CreateSolidBrush(ui().card);
+    HBRUSH field = CreateSolidBrush(ui().field);
+    DeleteObject(impl.paneBrush);
+    DeleteObject(impl.cardBrush);
+    DeleteObject(impl.fieldBrush);
+    impl.paneBrush = pane;
+    impl.cardBrush = card;
+    impl.fieldBrush = field;
+    impl.refresh();
 }
 
 }  // namespace cvb

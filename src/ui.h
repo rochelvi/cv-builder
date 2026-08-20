@@ -25,17 +25,37 @@ std::wstring widen(const std::string& utf8);
 std::string narrow(const std::wstring& text);
 
 // ------------------------------------------------------------------ colours
+// Which palette the app paints with. System follows the Windows "Choose your
+// mode" setting and switches with it while the app is running.
+enum class ThemeMode : int { System = 0, Light = 1, Dark = 2 };
+
 struct UiTheme {
     COLORREF window = RGB(0xF3, 0xF4, 0xF6);   // behind everything
     COLORREF pane = RGB(0xFF, 0xFF, 0xFF);     // the form surface
     COLORREF card = RGB(0xF8, 0xF9, 0xFB);     // a job / skill group card
     COLORREF cardEdge = RGB(0xDF, 0xE3, 0xE8);
+    COLORREF field = RGB(0xFF, 0xFF, 0xFF);    // inside an edit box
     COLORREF text = RGB(0x1B, 0x1F, 0x25);
     COLORREF subtext = RGB(0x60, 0x6A, 0x78);
     COLORREF accent = RGB(0x1E, 0x6F, 0xD9);
     COLORREF previewBack = RGB(0x5A, 0x5F, 0x66);  // the desk the page sits on
+    bool dark = false;
 };
 const UiTheme& ui();
+
+// Loads the remembered choice and lets uxtheme draw dark controls; call once
+// before the first window exists.
+void initTheme();
+ThemeMode themeMode();
+void setThemeMode(ThemeMode mode);  // remembered for the next run
+void refreshTheme();                // the system preference changed under us
+// Recolours the title bar and re-themes every control in the window to match
+// the palette in force.
+void applyThemeToWindow(HWND window);
+// The same for one control. The form builds and discards controls as the user
+// edits, and a control born after the switch would otherwise keep the light
+// styling it was created with.
+void applyThemeToControl(HWND control);
 
 // Every hard-coded size in the UI goes through here so the app scales with the
 // monitor rather than assuming 96 dpi.
@@ -160,6 +180,7 @@ public:
     void setCV(const CV& cv);
     CV collect() const;
     void setDpi(UINT dpi);
+    void applyTheme();  // rebuild the brushes and repaint in the new palette
 
 private:
     friend struct FormImpl;
@@ -176,6 +197,7 @@ public:
     void setFonts(const FontSet* fonts);
     void setDocument(Document doc);
     void setError(const std::wstring& message);
+    void applyTheme();  // redraw the desk in the new palette
 
     int pageCount() const;
     int page() const;
