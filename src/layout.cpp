@@ -108,6 +108,7 @@ private:
         else if (ref.id == "jobs") experience(title);
         else if (ref.id == "skill_groups") skills(title);
         else if (ref.id == "soft_skills") softSkills(title);
+        else if (ref.id == "studies") studies(title);
         else if (ref.id == "education") education(title);
         else if (ref.id == "volunteering") volunteering(title);
         else if (ref.id == "lab") lab(title);
@@ -259,6 +260,18 @@ private:
         if (cv_.jobs.empty()) return;
         section(title);
         jobEntries(cv_.jobs);
+    }
+
+    // The long form of education: same shape as a job, because the content is
+    // the same shape - a place, a span of time, and what came of it.
+    void studies(const std::string& title) {
+        std::vector<Job> items;
+        for (const Job& item : cv_.studies)
+            if (!item.title.empty() || !item.company.empty() || !item.bullets.empty())
+                items.push_back(item);
+        if (items.empty()) return;
+        section(title);
+        jobEntries(items);
     }
 
     void volunteering(const std::string& title) {

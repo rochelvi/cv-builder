@@ -24,7 +24,8 @@ const wchar_t* const kThemeLabels[TR_Count] = {
 };
 
 const char* const kSectionIds[kSectionCount] = {
-    "summary", "jobs", "skill_groups", "soft_skills", "education", "volunteering", "lab",
+    "summary", "jobs", "skill_groups", "soft_skills", "studies", "education", "volunteering",
+    "lab",
 };
 
 const wchar_t* const kSectionEditorNames[kSectionCount] = {
@@ -32,15 +33,16 @@ const wchar_t* const kSectionEditorNames[kSectionCount] = {
     L"Опыт работы",
     L"Технические навыки",
     L"Soft skills",
-    L"Образование и сертификаты",
+    L"Учёба (подробно)",
+    L"Сертификаты и курсы",
     L"Волонтёрство",
     L"Личная лаборатория",
 };
 
 namespace {
 const char* const kSectionLabels[kSectionCount] = {
-    "Summary", "Experience", "Technical Skills", "Soft Skills",
-    "Education & Certifications", "Volunteer Work", "Personal Lab",
+    "Summary", "Experience", "Technical Skills", "Soft Skills", "Education",
+    "Certifications & Courses", "Volunteer Work", "Personal Lab",
 };
 }  // namespace
 
@@ -231,6 +233,7 @@ std::string toJson(const CV& cv) {
         education.push_back(std::move(e));
     }
     root.set("education", js::Value(std::move(education)));
+    root.set("studies", writeJobs(cv.studies));
     root.set("lab_bullets", writeStrings(cv.labBullets));
 
     js::Array sections;
@@ -299,6 +302,10 @@ std::vector<SectionRef> readSections(const js::Value& root) {
                 ref.label = root["volunteer_title"].asString(ref.label);
             else if (ref.id == "lab")
                 ref.label = root["lab_title"].asString(ref.label);
+            else if (ref.id == "education")
+                // Back when this was the only education block it said so; a
+                // file from then keeps its wording rather than being retitled.
+                ref.label = "Education & Certifications";
         }
     }
 
@@ -343,6 +350,7 @@ bool fromJson(const std::string& text, CV& cv, std::string& error) {
         item.highlight = e["highlight"].asBool();
         cv.education.push_back(std::move(item));
     }
+    cv.studies = readJobs(root["studies"]);
     cv.labBullets = stringList(root["lab_bullets"]);
     cv.sections = readSections(root);
 

@@ -133,11 +133,12 @@ struct FormImpl : FormHost {
 
     enum Heading {
         H_Colors, H_Sections, H_Header, H_Summary, H_Experience, H_Volunteer,
-        H_Skills, H_Soft, H_Education, H_Lab, H_Count
+        H_Skills, H_Soft, H_Studies, H_Education, H_Lab, H_Count
     };
     HWND headings[H_Count] = {};
     HWND skillsHint = nullptr;
     HWND sectionsHint = nullptr;
+    HWND studiesHint = nullptr;
     HWND presetLabel = nullptr;
 
     HWND name = nullptr, role = nullptr, email = nullptr, location = nullptr, website = nullptr;
@@ -150,7 +151,7 @@ struct FormImpl : FormHost {
 
     SectionListEditor sectionOrder;
     ListEditor softSkills, labBullets;
-    CardList jobs, volunteering, skillGroups, education;
+    CardList jobs, volunteering, skillGroups, studies, education;
     std::vector<RECT> frames;
 
     // ---- FormHost ----
@@ -510,22 +511,39 @@ void CardList::collectFrames(std::vector<RECT>& out) const {
 
 namespace {
 
+// Cue banners for a JobCard. Studies and jobs share a shape but not a
+// vocabulary, so the words are passed in rather than hard-coded.
+struct JobHints {
+    const wchar_t* title = L"Должность";
+    const wchar_t* period = L"2022 – 2025 · 3 года";
+    const wchar_t* company = L"Компания";
+    const wchar_t* location = L"Город";
+    const wchar_t* bullet = L"Достижение или обязанность";
+};
+
+const JobHints kStudyHints{L"Программа, специальность или степень",
+                           L"2022 – 2026",
+                           L"Университет или школа",
+                           L"Город",
+                           L"Курс, проект, олимпиада, активность"};
+
 class JobCard : public Card {
 public:
-    explicit JobCard(Job job) : job_(std::move(job)) {}
+    explicit JobCard(Job job, JobHints hints = JobHints())
+        : job_(std::move(job)), hints_(hints) {}
 
     void build(FormHost& host) override {
         host_ = &host;
-        title_ = makeEdit(host, L"Должность");
-        period_ = makeEdit(host, L"2022 – 2025 · 3 года");
-        company_ = makeEdit(host, L"Компания");
-        location_ = makeEdit(host, L"Город");
+        title_ = makeEdit(host, hints_.title);
+        period_ = makeEdit(host, hints_.period);
+        company_ = makeEdit(host, hints_.company);
+        location_ = makeEdit(host, hints_.location);
         writeText(title_, job_.title);
         writeText(period_, job_.period);
         writeText(company_, job_.company);
         writeText(location_, job_.location);
         bulletsLabel_ = makeLabel(host, L"Пункты", false);
-        bullets_.create(host, L"Достижение или обязанность");
+        bullets_.create(host, hints_.bullet);
         bullets_.setValues(job_.bullets);
     }
 
@@ -568,6 +586,7 @@ public:
 private:
     FormHost* host_ = nullptr;
     Job job_;
+    JobHints hints_;
     HWND title_ = nullptr, period_ = nullptr, company_ = nullptr, location_ = nullptr;
     HWND bulletsLabel_ = nullptr;
     ListEditor bullets_;
@@ -824,7 +843,13 @@ void FormImpl::relayout() {
     putHeading(H_Soft);
     y += softSkills.layout(x, y, width) + section;
 
-    // Education.
+    // Studies, written up like jobs.
+    putHeading(H_Studies);
+    place(studiesHint, x, y, width, scale(18));
+    y += scale(20);
+    y += studies.layout(x, y, width) + section;
+
+    // Certifications.
     putHeading(H_Education);
     y += education.layout(x, y, width) + section;
 
@@ -837,6 +862,7 @@ void FormImpl::relayout() {
     jobs.collectFrames(frames);
     volunteering.collectFrames(frames);
     skillGroups.collectFrames(frames);
+    studies.collectFrames(frames);
     education.collectFrames(frames);
 
     scrollY = std::min(scrollY, std::max(0, contentHeight - static_cast<int>(client.bottom)));
@@ -1178,7 +1204,8 @@ bool FormPane::create(HWND parent, HINSTANCE instance, std::function<void()> onC
 
     const wchar_t* titles[FormImpl::H_Count] = {
         L"Цвета", L"Разделы", L"Шапка", L"О себе", L"Опыт работы", L"Волонтёрство",
-        L"Технические навыки", L"Soft skills", L"Образование и сертификаты",
+        L"Технические навыки", L"Soft skills", L"Учёба",
+        L"Сертификаты и курсы",
         L"Личная лаборатория",
     };
     for (int i = 0; i < FormImpl::H_Count; ++i) impl.headings[i] = makeLabel(impl, titles[i], true);
@@ -1224,6 +1251,14 @@ bool FormPane::create(HWND parent, HINSTANCE instance, std::function<void()> onC
         group.skills.push_back(Skill{"Навык", true});
         return std::unique_ptr<Card>(new SkillGroupCard(std::move(group)));
     });
+    impl.studiesHint =
+        makeLabel(impl,
+                  L"Развёрнутая учёба: программа, вуз, годы и чем занимались — как в опыте работы.",
+                  false);
+    impl.studies.create(impl, L"+ Добавить учёбу", [] {
+        return std::unique_ptr<Card>(new JobCard(
+            Job{"Программа обучения", "2022 – 2026", "Университет", "", {}}, kStudyHints));
+    });
     impl.education.create(impl, L"+ Добавить запись", [] {
         return std::unique_ptr<Card>(new EducationCard(Education{"Сертификация", "Запланировано", false}));
     });
@@ -1254,6 +1289,10 @@ void FormPane::setCV(const CV& cv) {
 
     impl.jobs.clear();
     for (const Job& job : cv.jobs) impl.jobs.appendCard(std::make_unique<JobCard>(job));
+
+    impl.studies.clear();
+    for (const Job& item : cv.studies)
+        impl.studies.appendCard(std::make_unique<JobCard>(item, kStudyHints));
     impl.volunteering.clear();
     for (const Job& job : cv.volunteering)
         impl.volunteering.appendCard(std::make_unique<JobCard>(job));
@@ -1285,6 +1324,9 @@ CV FormPane::collect() const {
 
     for (const std::unique_ptr<Card>& card : impl.jobs.cards())
         cv.jobs.push_back(static_cast<const JobCard*>(card.get())->read());
+
+    for (const std::unique_ptr<Card>& card : impl.studies.cards())
+        cv.studies.push_back(static_cast<const JobCard*>(card.get())->read());
     for (const std::unique_ptr<Card>& card : impl.volunteering.cards())
         cv.volunteering.push_back(static_cast<const JobCard*>(card.get())->read());
     for (const std::unique_ptr<Card>& card : impl.skillGroups.cards())

@@ -76,7 +76,7 @@ struct SectionRef {
 
 // Every section the renderer knows how to draw, in the order it used before
 // the running order became editable.
-constexpr int kSectionCount = 7;
+constexpr int kSectionCount = 8;
 extern const char* const kSectionIds[kSectionCount];
 extern const wchar_t* const kSectionEditorNames[kSectionCount];  // labels in the editor
 
@@ -100,6 +100,10 @@ struct CV {
     std::vector<SkillGroup> skillGroups;
     std::vector<std::string> softSkills;
     std::vector<Education> education;
+    // Studies written up the way jobs are - degree, institution, dates and
+    // what was actually done there - for people whose university years carry
+    // more than a certificate line.
+    std::vector<Job> studies;
     std::vector<std::string> labBullets;
     // Always holds every known section exactly once: reading repairs anything
     // missing, duplicated or unknown, so the renderer and the editor can walk

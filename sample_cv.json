@@ -208,6 +208,20 @@
     "Vaultwarden self-hosted deployment: Docker, Nginx Proxy Manager, automated SQLite backups (Bash + Python)",
     "Mass SSH automation: paramiko-based scripts for fleet-wide agent deployment/removal across 50+ Ubuntu hosts"
   ],
+  "studies": [
+    {
+      "title": "BSc, Computer Science",
+      "period": "2021 – 2025",
+      "company": "Example State University",
+      "location": "City",
+      "bullets": [
+        "Coursework: operating systems, computer networks, databases, cryptography, algorithms",
+        "Ran the student network lab: maintained 20 workstations, VLAN segmentation, and a lab DNS/DHCP server",
+        "Captain of the university CTF team; organised two intramural jeopardy-style competitions",
+        "Thesis: automated deployment and monitoring of a small-office network with Ansible and Zabbix"
+      ]
+    }
+  ],
   "sections": [
     {
       "id": "summary",
@@ -234,22 +248,28 @@
       "order": 3
     },
     {
-      "id": "education",
-      "label": "Education & Certifications",
+      "id": "studies",
+      "label": "Education",
       "enabled": true,
       "order": 4
+    },
+    {
+      "id": "education",
+      "label": "Certifications & Courses",
+      "enabled": true,
+      "order": 5
     },
     {
       "id": "volunteering",
       "label": "Volunteer Work",
       "enabled": true,
-      "order": 5
+      "order": 6
     },
     {
       "id": "lab",
       "label": "Personal Lab",
       "enabled": true,
-      "order": 6
+      "order": 7
     }
   ],
   "theme": {
