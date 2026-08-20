@@ -1,16 +1,16 @@
 {
-  "name": "Daniil Mishin",
+  "name": "Your Name",
   "role": "SYSTEM ADMINISTRATOR",
-  "email": "mishindaniil365247@gmail.com",
-  "location": "Tashkent, Uzbekistan",
-  "website": "github.com/rochelvi",
-  "summary": "System administrator with 3+ years of hands-on experience managing Windows Server and Linux environments, Active Directory, network infrastructure, and virtualization. Graduate of School 21 Tashkent cybersecurity program. Builds and operates a personal lab (Proxmox, EVE-NG, Wazuh) — brings security awareness to every infrastructure task. Comfortable with scripting (Python, Bash, PowerShell) and automating routine admin work.",
+  "email": "you@example.com",
+  "location": "City, Country",
+  "website": "github.com/username",
+  "summary": "System administrator with 3+ years of hands-on experience managing Windows Server and Linux environments, Active Directory, network infrastructure, and virtualization. Builds and operates a personal lab (Proxmox, EVE-NG, Wazuh) — brings security awareness to every infrastructure task. Comfortable with scripting (Python, Bash, PowerShell) and automating routine admin work.",
   "jobs": [
     {
       "title": "System Administrator",
       "period": "2022 – 2025 · 3 yrs",
-      "company": "ИП ООО «TNG LOGGING ASIA»",
-      "location": "Tashkent",
+      "company": "Example Logistics LLC",
+      "location": "City",
       "bullets": [
         "Administered Windows Server (2016/2019) and Ubuntu/Debian servers; managed AD, GPO, DNS, DHCP for 50+ users",
         "Set up and maintained Hyper-V and VMware virtualization clusters; handled VM provisioning and snapshot management",
@@ -22,24 +22,23 @@
     {
       "title": "Cybersecurity Intern",
       "period": "Jan 2026 – Apr 2026",
-      "company": "School 21 (НОУ «SHKOLA 21»)",
-      "location": "Tashkent",
+      "company": "Example Security Academy",
+      "location": "City",
       "bullets": [
         "Deployed and hardened server infrastructure: Vaultwarden on Docker + Nginx Proxy Manager + automated backups",
         "Configured Wazuh SIEM and Suricata IDS on Proxmox; wrote detection rules from live pcap analysis",
         "Designed enterprise network topology (NGFW + WireGuard VPN + IDS + endpoint protection)",
-        "Configured КриптоПРО NGate: GOST TLS, certificate generation, SCP key transfer, Windows CSP integration",
+        "Configured a TLS gateway: certificate generation, key transfer over SCP, Windows CSP integration",
         "Automated Wazuh agent deployment and removal across 50+ hosts using Python + paramiko over SSH"
       ]
     }
   ],
-  "volunteer_title": "VOLUNTEER WORK",
   "volunteering": [
     {
       "title": "IT Volunteer",
       "period": "2023 – 2024",
-      "company": "School 21 community",
-      "location": "Tashkent",
+      "company": "Local student community",
+      "location": "City",
       "bullets": [
         "Helped fellow students set up Linux workstations, VPN access, and lab virtual machines",
         "Ran informal workshops on Active Directory basics and network troubleshooting"
@@ -189,8 +188,8 @@
   ],
   "education": [
     {
-      "title": "School 21 — Cybersecurity Program",
-      "subtitle": "НОУ «SHKOLA 21», Tashkent · 2026",
+      "title": "Cybersecurity Program",
+      "subtitle": "Example Security Academy, City · 2026",
       "highlight": true
     },
     {
@@ -204,11 +203,54 @@
       "highlight": false
     }
   ],
-  "lab_title": "PERSONAL LAB",
   "lab_bullets": [
     "Proxmox hypervisor running EVE-NG (Cisco/MikroTik/Juniper topologies), Wazuh SIEM, and Suricata IDS for continuous practice",
     "Vaultwarden self-hosted deployment: Docker, Nginx Proxy Manager, automated SQLite backups (Bash + Python)",
     "Mass SSH automation: paramiko-based scripts for fleet-wide agent deployment/removal across 50+ Ubuntu hosts"
+  ],
+  "sections": [
+    {
+      "id": "summary",
+      "label": "Summary",
+      "enabled": true,
+      "order": 0
+    },
+    {
+      "id": "jobs",
+      "label": "Experience",
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "id": "skill_groups",
+      "label": "Technical Skills",
+      "enabled": true,
+      "order": 2
+    },
+    {
+      "id": "soft_skills",
+      "label": "Soft Skills",
+      "enabled": true,
+      "order": 3
+    },
+    {
+      "id": "education",
+      "label": "Education & Certifications",
+      "enabled": true,
+      "order": 4
+    },
+    {
+      "id": "volunteering",
+      "label": "Volunteer Work",
+      "enabled": true,
+      "order": 5
+    },
+    {
+      "id": "lab",
+      "label": "Personal Lab",
+      "enabled": true,
+      "order": 6
+    }
   ],
   "theme": {
     "background": "#0d0f12",

@@ -132,21 +132,23 @@ struct FormImpl : FormHost {
     std::unordered_map<HWND, std::function<void()>> clicks;
 
     enum Heading {
-        H_Colors, H_Header, H_Summary, H_Experience, H_Volunteer,
+        H_Colors, H_Sections, H_Header, H_Summary, H_Experience, H_Volunteer,
         H_Skills, H_Soft, H_Education, H_Lab, H_Count
     };
     HWND headings[H_Count] = {};
     HWND skillsHint = nullptr;
+    HWND sectionsHint = nullptr;
     HWND presetLabel = nullptr;
 
     HWND name = nullptr, role = nullptr, email = nullptr, location = nullptr, website = nullptr;
-    HWND summary = nullptr, volunteerTitle = nullptr, labTitle = nullptr;
+    HWND summary = nullptr;
 
     HWND preset = nullptr;
     HWND swatch[TR_Count] = {};
     HWND swatchLabel[TR_Count] = {};
     std::string colors[TR_Count];
 
+    SectionListEditor sectionOrder;
     ListEditor softSkills, labBullets;
     CardList jobs, volunteering, skillGroups, education;
     std::vector<RECT> frames;
@@ -329,6 +331,91 @@ int ListEditor::layout(int x, int y, int width) {
 }
 
 void ListEditor::destroy() { setValues({}); }
+
+// --------------------------------------------------------- SectionListEditor
+
+void SectionListEditor::create(FormHost& host) { host_ = &host; }
+
+void SectionListEditor::addRow(const SectionRef& ref) {
+    Row row;
+    row.id = ref.id;
+    const wchar_t* name = L"";
+    for (int i = 0; i < kSectionCount; ++i)
+        if (ref.id == kSectionIds[i]) name = kSectionEditorNames[i];
+    row.enabled = makeCheck(*host_, name);
+    Button_SetCheck(row.enabled, ref.enabled ? BST_CHECKED : BST_UNCHECKED);
+    row.label = makeEdit(*host_, L"Заголовок на странице");
+    writeText(row.label, ref.label);
+    row.up = makeButton(*host_, L"↑");
+    row.down = makeButton(*host_, L"↓");
+    rows_.push_back(row);
+
+    // Rows swap places, so the handlers find their row by handle rather than
+    // capturing an index that the first move would invalidate.
+    HWND key = row.label;
+    auto find = [this, key]() -> size_t {
+        for (size_t i = 0; i < rows_.size(); ++i)
+            if (rows_[i].label == key) return i;
+        return rows_.size();
+    };
+    host_->onClick(row.up, [this, find] { move(find(), -1); });
+    host_->onClick(row.down, [this, find] { move(find(), 1); });
+}
+
+void SectionListEditor::move(size_t index, int delta) {
+    size_t target = static_cast<size_t>(static_cast<long>(index) + delta);
+    if (index >= rows_.size() || target >= rows_.size()) return;
+    std::swap(rows_[index], rows_[target]);
+    host_->restructured();
+}
+
+void SectionListEditor::setSections(const std::vector<SectionRef>& sections) {
+    destroy();
+    for (const SectionRef& ref : sections) addRow(ref);
+}
+
+std::vector<SectionRef> SectionListEditor::values() const {
+    std::vector<SectionRef> out;
+    for (size_t i = 0; i < rows_.size(); ++i) {
+        SectionRef ref;
+        ref.id = rows_[i].id;
+        ref.label = trimmed(readText(rows_[i].label));
+        if (ref.label.empty()) ref.label = defaultSectionLabel(ref.id);
+        ref.enabled = Button_GetCheck(rows_[i].enabled) == BST_CHECKED;
+        ref.order = static_cast<int>(i);
+        out.push_back(std::move(ref));
+    }
+    return out;
+}
+
+int SectionListEditor::layout(int x, int y, int width) {
+    const int gap = host_->scale(4);
+    const int button = host_->scale(kButtonSize);
+    const int row = host_->scale(kRowHeight);
+    const int check = host_->scale(190);
+    const int top = y;
+    for (const Row& item : rows_) {
+        int labelWidth = std::max(host_->scale(80), width - check - 2 * (button + gap) - gap);
+        place(item.enabled, x, y, check, row);
+        place(item.label, x + check + gap, y, labelWidth, row);
+        int bx = x + check + gap + labelWidth + gap;
+        place(item.up, bx, y, button, button);
+        place(item.down, bx + button + gap, y, button, button);
+        y += row + gap;
+    }
+    return y - top;
+}
+
+void SectionListEditor::destroy() {
+    while (!rows_.empty()) {
+        Row row = rows_.back();
+        rows_.pop_back();
+        destroyControl(*host_, row.enabled);
+        destroyControl(*host_, row.label);
+        destroyControl(*host_, row.up);
+        destroyControl(*host_, row.down);
+    }
+}
 
 // ---------------------------------------------------------------- CardList
 
@@ -696,6 +783,12 @@ void FormImpl::relayout() {
     }
     y += (TR_Count / 2) * (row + scale(4)) + section;
 
+    // Sections: what the document contains and in what order.
+    putHeading(H_Sections);
+    place(sectionsHint, x, y, width, scale(18));
+    y += scale(20);
+    y += sectionOrder.layout(x, y, width) + section;
+
     // Header.
     putHeading(H_Header);
     place(name, x, y, width, row);
@@ -719,8 +812,6 @@ void FormImpl::relayout() {
 
     // Volunteering.
     putHeading(H_Volunteer);
-    place(volunteerTitle, x, y, width, row);
-    y += row + gap;
     y += volunteering.layout(x, y, width) + section;
 
     // Technical skills.
@@ -739,8 +830,6 @@ void FormImpl::relayout() {
 
     // Personal lab.
     putHeading(H_Lab);
-    place(labTitle, x, y, width, row);
-    y += row + gap;
     y += labBullets.layout(x, y, width) + margin;
 
     contentHeight = y;
@@ -1088,7 +1177,7 @@ bool FormPane::create(HWND parent, HINSTANCE instance, std::function<void()> onC
     SetWindowLongPtrW(impl.body, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&impl));
 
     const wchar_t* titles[FormImpl::H_Count] = {
-        L"Цвета", L"Шапка", L"О себе", L"Опыт работы", L"Волонтёрство",
+        L"Цвета", L"Разделы", L"Шапка", L"О себе", L"Опыт работы", L"Волонтёрство",
         L"Технические навыки", L"Soft skills", L"Образование и сертификаты",
         L"Личная лаборатория",
     };
@@ -1116,8 +1205,11 @@ bool FormPane::create(HWND parent, HINSTANCE instance, std::function<void()> onC
     impl.location = makeEdit(impl, L"Город, страна");
     impl.website = makeEdit(impl, L"Сайт / GitHub");
     impl.summary = makeEdit(impl, L"", true);
-    impl.volunteerTitle = makeEdit(impl, L"Заголовок секции");
-    impl.labTitle = makeEdit(impl, L"Заголовок секции");
+    impl.sectionsHint =
+        makeLabel(impl, L"Снимите галочку, чтобы убрать раздел со страницы; ↑ ↓ меняют порядок.",
+                  false);
+    impl.sectionOrder.create(impl);
+    impl.sectionOrder.setSections(defaultSections());
     impl.skillsHint = makeLabel(impl, L"Группы заполняют две колонки слева направо.", false);
 
     impl.jobs.create(impl, L"+ Добавить работу", [] {
@@ -1152,8 +1244,7 @@ void FormPane::setCV(const CV& cv) {
     writeText(impl.location, cv.location);
     writeText(impl.website, cv.website);
     writeText(impl.summary, cv.summary);
-    writeText(impl.volunteerTitle, cv.volunteerTitle);
-    writeText(impl.labTitle, cv.labTitle);
+    impl.sectionOrder.setSections(cv.sections);
 
     for (int i = 0; i < TR_Count; ++i) {
         impl.colors[i] = cv.theme.c[i];
@@ -1190,8 +1281,7 @@ CV FormPane::collect() const {
     cv.location = readText(impl.location);
     cv.website = readText(impl.website);
     cv.summary = readText(impl.summary);
-    cv.volunteerTitle = readText(impl.volunteerTitle);
-    cv.labTitle = readText(impl.labTitle);
+    cv.sections = impl.sectionOrder.values();
 
     for (const std::unique_ptr<Card>& card : impl.jobs.cards())
         cv.jobs.push_back(static_cast<const JobCard*>(card.get())->read());

@@ -1,5 +1,6 @@
 #include "model.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cwchar>  // _wfopen: Unicode paths
 
@@ -21,6 +22,55 @@ const wchar_t* const kThemeLabels[TR_Count] = {
     L"Акцент 1 (секции, маркеры)",
     L"Акцент 2 (soft skills, образование)",
 };
+
+const char* const kSectionIds[kSectionCount] = {
+    "summary", "jobs", "skill_groups", "soft_skills", "education", "volunteering", "lab",
+};
+
+const wchar_t* const kSectionEditorNames[kSectionCount] = {
+    L"О себе",
+    L"Опыт работы",
+    L"Технические навыки",
+    L"Soft skills",
+    L"Образование и сертификаты",
+    L"Волонтёрство",
+    L"Личная лаборатория",
+};
+
+namespace {
+const char* const kSectionLabels[kSectionCount] = {
+    "Summary", "Experience", "Technical Skills", "Soft Skills",
+    "Education & Certifications", "Volunteer Work", "Personal Lab",
+};
+}  // namespace
+
+const char* defaultSectionLabel(const std::string& id) {
+    for (int i = 0; i < kSectionCount; ++i)
+        if (id == kSectionIds[i]) return kSectionLabels[i];
+    return "";
+}
+
+std::vector<SectionRef> defaultSections() {
+    std::vector<SectionRef> out;
+    for (int i = 0; i < kSectionCount; ++i) {
+        SectionRef ref;
+        ref.id = kSectionIds[i];
+        ref.label = kSectionLabels[i];
+        ref.enabled = true;
+        ref.order = i;
+        out.push_back(std::move(ref));
+    }
+    return out;
+}
+
+std::vector<SectionRef> orderedSections(const CV& cv) {
+    std::vector<SectionRef> out;
+    for (const SectionRef& ref : cv.sections)
+        if (ref.enabled) out.push_back(ref);
+    std::stable_sort(out.begin(), out.end(),
+                     [](const SectionRef& a, const SectionRef& b) { return a.order < b.order; });
+    return out;
+}
 
 Theme::Theme() {
     c[TR_Background] = "#0d0f12";
@@ -153,7 +203,6 @@ std::string toJson(const CV& cv) {
     root.set("website", cv.website);
     root.set("summary", cv.summary);
     root.set("jobs", writeJobs(cv.jobs));
-    root.set("volunteer_title", cv.volunteerTitle);
     root.set("volunteering", writeJobs(cv.volunteering));
 
     js::Array groups;
@@ -182,8 +231,18 @@ std::string toJson(const CV& cv) {
         education.push_back(std::move(e));
     }
     root.set("education", js::Value(std::move(education)));
-    root.set("lab_title", cv.labTitle);
     root.set("lab_bullets", writeStrings(cv.labBullets));
+
+    js::Array sections;
+    for (const SectionRef& ref : cv.sections) {
+        js::Value item{js::Object{}};
+        item.set("id", ref.id);
+        item.set("label", ref.label);
+        item.set("enabled", ref.enabled);
+        item.set("order", static_cast<double>(ref.order));
+        sections.push_back(std::move(item));
+    }
+    root.set("sections", js::Value(std::move(sections)));
 
     js::Value theme{js::Object{}};
     for (int i = 0; i < TR_Count; ++i) theme.set(kThemeKeys[i], cv.theme.c[i]);
@@ -191,6 +250,63 @@ std::string toJson(const CV& cv) {
 
     return js::dump(root, 2);
 }
+
+namespace {
+
+bool knownSection(const std::string& id) {
+    for (int i = 0; i < kSectionCount; ++i)
+        if (id == kSectionIds[i]) return true;
+    return false;
+}
+
+// Reads the running order, repairing whatever the file leaves out.
+//
+// A file written before the order was editable has no "sections" block at all;
+// it gets the default list, with the two headings that used to live in
+// "volunteer_title" / "lab_title" carried over so the page keeps its wording.
+// A file that does have one may still be missing entries - a section added to
+// the program after that file was saved - and those are appended, enabled, at
+// the end rather than silently dropped.
+std::vector<SectionRef> readSections(const js::Value& root) {
+    std::vector<SectionRef> out;
+    for (const js::Value& item : root["sections"].arr()) {
+        SectionRef ref;
+        ref.id = item["id"].asString();
+        if (!knownSection(ref.id)) continue;  // a section this build cannot draw
+        bool duplicate = false;
+        for (const SectionRef& seen : out) duplicate = duplicate || seen.id == ref.id;
+        if (duplicate) continue;
+        ref.label = item["label"].asString(defaultSectionLabel(ref.id));
+        ref.enabled = item["enabled"].asBool(true);
+        ref.order = static_cast<int>(item["order"].asNumber(static_cast<double>(out.size())));
+        out.push_back(std::move(ref));
+    }
+
+    const bool legacy = out.empty();
+    std::stable_sort(out.begin(), out.end(),
+                     [](const SectionRef& a, const SectionRef& b) { return a.order < b.order; });
+
+    for (const SectionRef& fallback : defaultSections()) {
+        bool present = false;
+        for (const SectionRef& ref : out) present = present || ref.id == fallback.id;
+        if (!present) out.push_back(fallback);
+    }
+
+    if (legacy) {
+        // The old per-section titles, if that file carried any.
+        for (SectionRef& ref : out) {
+            if (ref.id == "volunteering")
+                ref.label = root["volunteer_title"].asString(ref.label);
+            else if (ref.id == "lab")
+                ref.label = root["lab_title"].asString(ref.label);
+        }
+    }
+
+    for (size_t i = 0; i < out.size(); ++i) out[i].order = static_cast<int>(i);
+    return out;
+}
+
+}  // namespace
 
 bool fromJson(const std::string& text, CV& cv, std::string& error) {
     js::Value root;
@@ -205,7 +321,6 @@ bool fromJson(const std::string& text, CV& cv, std::string& error) {
     cv.website = root["website"].asString();
     cv.summary = root["summary"].asString();
     cv.jobs = readJobs(root["jobs"]);
-    cv.volunteerTitle = root["volunteer_title"].asString("VOLUNTEER WORK");
     cv.volunteering = readJobs(root["volunteering"]);
 
     for (const js::Value& g : root["skill_groups"].arr()) {
@@ -228,8 +343,8 @@ bool fromJson(const std::string& text, CV& cv, std::string& error) {
         item.highlight = e["highlight"].asBool();
         cv.education.push_back(std::move(item));
     }
-    cv.labTitle = root["lab_title"].asString("PERSONAL LAB");
     cv.labBullets = stringList(root["lab_bullets"]);
+    cv.sections = readSections(root);
 
     const js::Value& theme = root["theme"];
     for (int i = 0; i < TR_Count; ++i) {

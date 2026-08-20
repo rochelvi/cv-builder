@@ -63,6 +63,31 @@ struct Education {
     bool highlight = false;
 };
 
+// One entry of the section list: which block of the CV it refers to, what
+// heading it prints, whether it is drawn at all, and where it sits in the
+// document. The data itself stays in the fields below - this only describes
+// the running order, so turning a section off never loses what is in it.
+struct SectionRef {
+    std::string id;     // one of kSectionIds
+    std::string label;  // heading printed on the page
+    bool enabled = true;
+    int order = 0;
+};
+
+// Every section the renderer knows how to draw, in the order it used before
+// the running order became editable.
+constexpr int kSectionCount = 7;
+extern const char* const kSectionIds[kSectionCount];
+extern const wchar_t* const kSectionEditorNames[kSectionCount];  // labels in the editor
+
+// The English heading a section starts with; `id` unknown yields an empty
+// string, which the renderer treats as "no heading of its own".
+const char* defaultSectionLabel(const std::string& id);
+
+// The full list, enabled, in default order - what a CV without a `sections`
+// block is given.
+std::vector<SectionRef> defaultSections();
+
 struct CV {
     std::string name;
     std::string role;
@@ -71,15 +96,20 @@ struct CV {
     std::string website;
     std::string summary;
     std::vector<Job> jobs;
-    std::string volunteerTitle = "VOLUNTEER WORK";
     std::vector<Job> volunteering;
     std::vector<SkillGroup> skillGroups;
     std::vector<std::string> softSkills;
     std::vector<Education> education;
-    std::string labTitle = "PERSONAL LAB";
     std::vector<std::string> labBullets;
+    // Always holds every known section exactly once: reading repairs anything
+    // missing, duplicated or unknown, so the renderer and the editor can walk
+    // it without checking.
+    std::vector<SectionRef> sections = defaultSections();
     Theme theme;
 };
+
+// The enabled sections, sorted by `order` - what the renderer draws.
+std::vector<SectionRef> orderedSections(const CV& cv);
 
 // UTF-8 JSON text <-> CV. `fromJson` never fails on well-formed JSON: anything
 // it does not recognise is left at its default.

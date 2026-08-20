@@ -94,17 +94,25 @@ public:
         doc_.author = cv_.name;
         newPage();
         header();
-        summary();
-        experience();
-        skills();
-        softSkills();
-        education();
-        volunteering();
-        lab();
+        for (const SectionRef& ref : orderedSections(cv_)) draw(ref);
         return std::move(doc_);
     }
 
 private:
+    // Draws one section of the running order. An id this build does not know
+    // is skipped rather than guessed at.
+    void draw(const SectionRef& ref) {
+        const std::string title =
+            ref.label.empty() ? std::string(defaultSectionLabel(ref.id)) : ref.label;
+        if (ref.id == "summary") summary(title);
+        else if (ref.id == "jobs") experience(title);
+        else if (ref.id == "skill_groups") skills(title);
+        else if (ref.id == "soft_skills") softSkills(title);
+        else if (ref.id == "education") education(title);
+        else if (ref.id == "volunteering") volunteering(title);
+        else if (ref.id == "lab") lab(title);
+    }
+
     // ---------- primitives ----------
     const Font& font(bool bold) const { return fonts_.face(bold); }
     RGB color(ThemeRole role) const { return palette_[role]; }
@@ -203,9 +211,9 @@ private:
         }
     }
 
-    void summary() {
+    void summary(const std::string& title) {
         if (blank(cv_.summary)) return;
-        section("Summary", 15.9);
+        section(title, 15.9);
         std::vector<std::string> lines;
         for (const std::string& paragraph : splitLines(cv_.summary)) {
             if (blank(paragraph)) {
@@ -247,18 +255,18 @@ private:
         }
     }
 
-    void experience() {
+    void experience(const std::string& title) {
         if (cv_.jobs.empty()) return;
-        section("Experience");
+        section(title);
         jobEntries(cv_.jobs);
     }
 
-    void volunteering() {
+    void volunteering(const std::string& title) {
         std::vector<Job> jobs;
         for (const Job& job : cv_.volunteering)
             if (!job.title.empty() || !job.company.empty() || !job.bullets.empty()) jobs.push_back(job);
         if (jobs.empty()) return;
-        section(cv_.volunteerTitle.empty() ? "Volunteer Work" : cv_.volunteerTitle);
+        section(title);
         jobEntries(jobs);
     }
 
@@ -310,12 +318,12 @@ private:
         y_ = bottom;
     }
 
-    void skills() {
+    void skills(const std::string& title) {
         std::vector<SkillGroup> groups;
         for (const SkillGroup& group : cv_.skillGroups)
             if (!group.title.empty() || !group.skills.empty()) groups.push_back(group);
         if (groups.empty()) return;
-        section("Technical Skills");
+        section(title);
         size_t from = 0;
         while (from < groups.size()) {
             size_t take = skillsThatFit(groups, from, room());
@@ -328,12 +336,12 @@ private:
         }
     }
 
-    void softSkills() {
+    void softSkills(const std::string& title) {
         std::vector<std::string> items;
         for (const std::string& s : cv_.softSkills)
             if (!blank(s)) items.push_back(s);
         if (items.empty()) return;
-        section("Soft Skills", 22.4);
+        section(title, 22.4);
 
         const Font& f = font(false);
         const std::string separator = kMiddot;
@@ -368,12 +376,12 @@ private:
         }
     }
 
-    void education() {
+    void education(const std::string& title) {
         std::vector<Education> items;
         for (const Education& item : cv_.education)
             if (!item.title.empty() || !item.subtitle.empty()) items.push_back(item);
         if (items.empty()) return;
-        section("Education & Certifications", 16.6);
+        section(title, 16.6);
 
         double trailing = 0.0;  // height the previous row's subtitles added below its baseline
         for (size_t start = 0, row = 0; start < items.size(); start += 3, ++row) {
@@ -397,12 +405,12 @@ private:
         y_ += trailing;  // the last row's subtitles still sit below the cursor
     }
 
-    void lab() {
+    void lab(const std::string& title) {
         std::vector<std::string> items;
         for (const std::string& b : cv_.labBullets)
             if (!blank(b)) items.push_back(b);
         if (items.empty()) return;
-        section(cv_.labTitle.empty() ? "Personal Lab" : cv_.labTitle, 17.7);
+        section(title, 17.7);
         bullets(items);
     }
 

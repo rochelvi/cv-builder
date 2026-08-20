@@ -85,6 +85,33 @@ private:
     HWND add_ = nullptr;
 };
 
+// The running order of the document: one row per section, with a checkbox
+// that keeps it off the page without discarding what it holds, an editable
+// heading, and arrows that move it. Rows are stored in display order; `order`
+// is written out from that position.
+class SectionListEditor {
+public:
+    void create(FormHost& host);
+    void setSections(const std::vector<SectionRef>& sections);
+    std::vector<SectionRef> values() const;
+    int layout(int x, int y, int width);
+    void destroy();
+
+private:
+    void addRow(const SectionRef& ref);
+    void move(size_t index, int delta);
+
+    struct Row {
+        std::string id;
+        HWND enabled = nullptr;  // checkbox, labelled with the section name
+        HWND label = nullptr;    // heading printed on the page
+        HWND up = nullptr;
+        HWND down = nullptr;
+    };
+    FormHost* host_ = nullptr;
+    std::vector<Row> rows_;
+};
+
 // One card in a CardList. Subclasses own their controls and know how to read
 // themselves back into the model.
 class Card {
