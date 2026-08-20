@@ -37,11 +37,6 @@ std::string narrow(const std::wstring& text) {
     return out;
 }
 
-const UiTheme& ui() {
-    static const UiTheme theme;
-    return theme;
-}
-
 int scaled(int value, UINT dpi) { return MulDiv(value, static_cast<int>(dpi), 96); }
 
 namespace {
@@ -198,6 +193,7 @@ HWND makeEdit(FormHost& host, const wchar_t* cue, bool multiline = false) {
                                 nullptr, nullptr);
     SendMessageW(edit, WM_SETFONT, reinterpret_cast<WPARAM>(host.font()), TRUE);
     if (cue && *cue) SendMessageW(edit, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(cue));
+    applyThemeToControl(edit);
     return edit;
 }
 
@@ -206,6 +202,7 @@ HWND makeButton(FormHost& host, const wchar_t* label, DWORD extra = 0) {
                                   WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON | extra, 0, 0,
                                   10, 10, host.content(), nullptr, nullptr, nullptr);
     SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(host.font()), TRUE);
+    applyThemeToControl(button);
     return button;
 }
 
@@ -214,6 +211,7 @@ HWND makeCheck(FormHost& host, const wchar_t* label) {
                                WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 10, 10,
                                host.content(), nullptr, nullptr, nullptr);
     SendMessageW(box, WM_SETFONT, reinterpret_cast<WPARAM>(host.font()), TRUE);
+    applyThemeToControl(box);
     return box;
 }
 
@@ -222,6 +220,7 @@ HWND makeLabel(FormHost& host, const wchar_t* text, bool strong) {
                                  host.content(), nullptr, nullptr, nullptr);
     SendMessageW(label, WM_SETFONT,
                  reinterpret_cast<WPARAM>(strong ? host.boldFont() : host.font()), TRUE);
+    applyThemeToControl(label);
     return label;
 }
 
@@ -1046,7 +1045,7 @@ LRESULT CALLBACK bodyProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
         case WM_CTLCOLORLISTBOX: {
             HDC dc = reinterpret_cast<HDC>(wParam);
             SetTextColor(dc, ui().text);
-            SetBkColor(dc, RGB(255, 255, 255));
+            SetBkColor(dc, ui().field);
             return reinterpret_cast<LRESULT>(impl ? impl->fieldBrush : nullptr);
         }
         case WM_DRAWITEM: {
@@ -1188,7 +1187,7 @@ bool FormPane::create(HWND parent, HINSTANCE instance, std::function<void()> onC
     impl.strong = makeFont(impl.dpi, true);
     impl.paneBrush = CreateSolidBrush(ui().pane);
     impl.cardBrush = CreateSolidBrush(ui().card);
-    impl.fieldBrush = CreateSolidBrush(RGB(255, 255, 255));
+    impl.fieldBrush = CreateSolidBrush(ui().field);
 
     hwnd_ = CreateWindowExW(0, L"CVBFormPane", L"",
                             WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPCHILDREN, 0, 0, 10, 10,
@@ -1216,6 +1215,7 @@ bool FormPane::create(HWND parent, HINSTANCE instance, std::function<void()> onC
                                       WS_VSCROLL,
                                   0, 0, 10, 200, impl.body, nullptr, instance, nullptr);
     SendMessageW(impl.preset, WM_SETFONT, reinterpret_cast<WPARAM>(impl.regular), TRUE);
+    applyThemeToControl(impl.preset);
     for (const Preset& item : presets())
         ComboBox_AddString(impl.preset, item.name);
 
@@ -1365,6 +1365,22 @@ void FormPane::setDpi(UINT dpi) {
     DeleteObject(oldRegular);
     DeleteObject(oldStrong);
     impl.relayout();
+}
+
+void FormPane::applyTheme() {
+    FormImpl& impl = *impl_;
+    // The control tree itself is re-themed by the main window; only the
+    // brushes this pane hands back from WM_CTLCOLOR* are ours to rebuild.
+    HBRUSH pane = CreateSolidBrush(ui().pane);
+    HBRUSH card = CreateSolidBrush(ui().card);
+    HBRUSH field = CreateSolidBrush(ui().field);
+    DeleteObject(impl.paneBrush);
+    DeleteObject(impl.cardBrush);
+    DeleteObject(impl.fieldBrush);
+    impl.paneBrush = pane;
+    impl.cardBrush = card;
+    impl.fieldBrush = field;
+    impl.refresh();
 }
 
 }  // namespace cvb

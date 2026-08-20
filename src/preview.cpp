@@ -388,4 +388,10 @@ void PreviewPane::setZoom(int percent) {
 
 int PreviewPane::zoom() const { return impl_->zoom; }
 
+void PreviewPane::applyTheme() {
+    // The desk colour is read straight from ui() while rendering, so a repaint
+    // is all it takes.
+    InvalidateRect(hwnd_, nullptr, FALSE);
+}
+
 }  // namespace cvb

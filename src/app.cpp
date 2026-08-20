@@ -23,7 +23,7 @@ const wchar_t* const kAppName = L"CV Builder";
 enum : int {
     IDM_NEW = 100, IDM_OPEN, IDM_SAVE, IDM_SAVEAS, IDM_EXPORT, IDM_EXIT,
     IDC_PREV_PAGE = 200, IDC_NEXT_PAGE, IDC_ZOOM_OUT, IDC_ZOOM_IN,
-    IDC_PAGE_LABEL, IDC_ZOOM_LABEL, IDC_STATUS,
+    IDC_PAGE_LABEL, IDC_ZOOM_LABEL, IDC_THEME,
 };
 
 constexpr UINT kRefreshTimer = 1;
@@ -32,6 +32,11 @@ constexpr UINT kRefreshDelay = 200;  // ms of quiet before the preview redraws
 constexpr int kToolbarHeight = 40;
 constexpr int kToolButtonWidth = 118;
 constexpr int kSmallButton = 30;
+constexpr int kThemeWidth = 160;
+constexpr int kStatusHeight = 24;
+
+// In the order of ThemeMode, so the selection index is the mode.
+const wchar_t* const kThemeNames[] = {L"Как в системе", L"Светлая", L"Тёмная"};
 
 struct ToolButton {
     int id;
@@ -78,8 +83,8 @@ std::wstring suggestedName(const std::wstring& personName, const wchar_t* extens
 
 struct App {
     HWND hwnd = nullptr;
-    HWND status = nullptr;
     HWND fileButtons[5] = {};
+    HWND theme = nullptr;
     HWND prevPage = nullptr, nextPage = nullptr, pageLabel = nullptr;
     HWND zoomOut = nullptr, zoomIn = nullptr, zoomLabel = nullptr;
     HFONT uiFont = nullptr;
@@ -91,6 +96,7 @@ struct App {
     bool fontsReady = false;
 
     std::wstring path;   // the .json currently being edited, empty if never saved
+    std::wstring status; // the line drawn along the bottom edge
     bool dirty = false;
     UINT dpi = 96;
 
@@ -103,6 +109,9 @@ struct App {
     void updateTitle();
     void updatePreviewControls();
     void setStatus(const std::wstring& text);
+    void applyTheme();
+    RECT statusRect() const;
+    void paintChrome(HDC dc);
 
     void actionNew();
     void actionOpen();
@@ -135,21 +144,6 @@ HWND makeToolLabel(HWND parent, HINSTANCE instance, int id, const wchar_t* text,
     return label;
 }
 
-HMENU buildMenu() {
-    HMENU file = CreatePopupMenu();
-    AppendMenuW(file, MF_STRING, IDM_NEW, L"&Новый\tCtrl+N");
-    AppendMenuW(file, MF_STRING, IDM_OPEN, L"&Открыть…\tCtrl+O");
-    AppendMenuW(file, MF_STRING, IDM_SAVE, L"&Сохранить\tCtrl+S");
-    AppendMenuW(file, MF_STRING, IDM_SAVEAS, L"Сохранить &как…\tCtrl+Shift+S");
-    AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(file, MF_STRING, IDM_EXPORT, L"&Экспорт PDF…\tCtrl+E");
-    AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(file, MF_STRING, IDM_EXIT, L"В&ыход\tCtrl+Q");
-    HMENU bar = CreateMenu();
-    AppendMenuW(bar, MF_POPUP, reinterpret_cast<UINT_PTR>(file), L"&Файл");
-    return bar;
-}
-
 HFONT makeUiFont(UINT dpi) {
     LOGFONTW lf{};
     lf.lfHeight = -scaled(12, dpi);
@@ -161,8 +155,57 @@ HFONT makeUiFont(UINT dpi) {
 
 // ---------------------------------------------------------------- App logic
 
+// The bottom strip is painted rather than a STATUSCLASSNAME control: a common
+// status bar always draws itself in the system colours, which leaves a bright
+// band across the bottom of an otherwise dark window.
+RECT App::statusRect() const {
+    RECT client{};
+    GetClientRect(hwnd, &client);
+    client.top = std::max<LONG>(0, client.bottom - scale(kStatusHeight));
+    return client;
+}
+
 void App::setStatus(const std::wstring& text) {
-    if (status) SendMessageW(status, SB_SETTEXTW, 0, reinterpret_cast<LPARAM>(text.c_str()));
+    status = text;
+    RECT strip = statusRect();
+    InvalidateRect(hwnd, &strip, TRUE);
+}
+
+void App::paintChrome(HDC dc) {
+    RECT client{};
+    GetClientRect(hwnd, &client);
+    const RECT strip = statusRect();
+
+    HPEN pen = CreatePen(PS_SOLID, 1, ui().cardEdge);
+    HGDIOBJ oldPen = SelectObject(dc, pen);
+    const int bar = scale(kToolbarHeight);
+    MoveToEx(dc, 0, bar - 1, nullptr);
+    LineTo(dc, client.right, bar - 1);
+    MoveToEx(dc, 0, strip.top, nullptr);
+    LineTo(dc, client.right, strip.top);
+    SelectObject(dc, oldPen);
+    DeleteObject(pen);
+
+    RECT text = strip;
+    text.left += scale(10);
+    text.right -= scale(10);
+    SetBkMode(dc, TRANSPARENT);
+    SetTextColor(dc, ui().subtext);
+    HGDIOBJ oldFont = SelectObject(dc, uiFont);
+    DrawTextW(dc, status.c_str(), -1, &text,
+              DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    SelectObject(dc, oldFont);
+}
+
+void App::applyTheme() {
+    HBRUSH fresh = CreateSolidBrush(ui().window);
+    DeleteObject(background);
+    background = fresh;
+    applyThemeToWindow(hwnd);
+    form.applyTheme();
+    preview.applyTheme();
+    RedrawWindow(hwnd, nullptr, nullptr,
+                 RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_FRAME);
 }
 
 void App::updateTitle() {
@@ -323,13 +366,7 @@ void App::layout() {
     const int buttonHeight = scale(28);
     const int small = scale(kSmallButton);
 
-    int statusHeight = 0;
-    if (status) {
-        SendMessageW(status, WM_SIZE, 0, 0);
-        RECT bar{};
-        GetWindowRect(status, &bar);
-        statusHeight = bar.bottom - bar.top;
-    }
+    const int statusHeight = scale(kStatusHeight);
 
     int x = margin;
     const int y = (barHeight - buttonHeight) / 2;
@@ -339,6 +376,12 @@ void App::layout() {
                      SWP_NOZORDER | SWP_NOACTIVATE);
         x += width + gap;
     }
+
+    // The drop-down sits apart from the file actions: it changes the app, not
+    // the document. Its height is the extent of the open list, not of the box.
+    x += gap;
+    SetWindowPos(theme, nullptr, x, y, scale(kThemeWidth), buttonHeight * 6,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
 
     // Preview controls hug the right edge of the same bar.
     int right = client.right - margin;
@@ -380,14 +423,19 @@ void App::build(HINSTANCE instance) {
     zoomLabel = makeToolLabel(hwnd, instance, IDC_ZOOM_LABEL, L"100 %", uiFont);
     zoomIn = makeToolButton(hwnd, instance, IDC_ZOOM_IN, L"+", uiFont);
 
-    status = CreateWindowExW(0, STATUSCLASSNAMEW, L"", WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP, 0, 0,
-                             0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_STATUS)),
-                             instance, nullptr);
-    SendMessageW(status, WM_SETFONT, reinterpret_cast<WPARAM>(uiFont), TRUE);
+    theme = CreateWindowExW(0, L"COMBOBOX", L"",
+                            WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST, 0, 0, 10, 200,
+                            hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_THEME)),
+                            instance, nullptr);
+    SendMessageW(theme, WM_SETFONT, reinterpret_cast<WPARAM>(uiFont), TRUE);
+    for (const wchar_t* name : kThemeNames)
+        SendMessageW(theme, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name));
+    SendMessageW(theme, CB_SETCURSEL, static_cast<WPARAM>(themeMode()), 0);
 
     form.create(hwnd, instance, [this] { scheduleRefresh(); });
     preview.create(hwnd, instance);
     preview.onStateChanged = [this] { updatePreviewControls(); };
+    applyTheme();
 
     std::string error;
     fontsReady = fonts.loadSystem(error);
@@ -436,8 +484,20 @@ LRESULT CALLBACK mainProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
             return 0;
         case WM_GETMINMAXINFO: {
             MINMAXINFO* info = reinterpret_cast<MINMAXINFO*>(lParam);
-            info->ptMinTrackSize.x = 900;
-            info->ptMinTrackSize.y = 600;
+            const UINT dpi = app ? app->dpi : 96;
+            // Wide enough that the toolbar never overlaps itself — but never
+            // wider than the screen, or a small high-dpi display would be left
+            // with a window it cannot fit.
+            LONG width = scaled(1180, dpi);
+            LONG height = scaled(600, dpi);
+            MONITORINFO monitor{};
+            monitor.cbSize = sizeof monitor;
+            if (GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), &monitor)) {
+                width = std::min(width, monitor.rcWork.right - monitor.rcWork.left);
+                height = std::min(height, monitor.rcWork.bottom - monitor.rcWork.top);
+            }
+            info->ptMinTrackSize.x = width;
+            info->ptMinTrackSize.y = height;
             return 0;
         }
         case WM_ERASEBKGND: {
@@ -446,6 +506,24 @@ LRESULT CALLBACK mainProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
             GetClientRect(window, &client);
             FillRect(reinterpret_cast<HDC>(wParam), &client, app->background);
             return 1;
+        }
+        case WM_PAINT: {
+            if (!app) break;
+            PAINTSTRUCT ps;
+            HDC dc = BeginPaint(window, &ps);
+            app->paintChrome(dc);
+            EndPaint(window, &ps);
+            return 0;
+        }
+        case WM_SETTINGCHANGE: {
+            // Windows announces a colour-scheme change this way; nothing else
+            // tells an app that "Choose your mode" has been flipped.
+            const wchar_t* area = reinterpret_cast<const wchar_t*>(lParam);
+            if (!app || !area || wcscmp(area, L"ImmersiveColorSet") != 0) break;
+            if (themeMode() != ThemeMode::System) break;
+            refreshTheme();
+            app->applyTheme();
+            return 0;
         }
         case WM_CTLCOLORSTATIC: {
             // Opaque, in the toolbar's own colour. The page and zoom labels
@@ -467,6 +545,14 @@ LRESULT CALLBACK mainProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
             return 0;
         case WM_COMMAND: {
             if (!app) break;
+            if (LOWORD(wParam) == IDC_THEME) {
+                if (HIWORD(wParam) != CBN_SELCHANGE) break;
+                LRESULT choice = SendMessageW(app->theme, CB_GETCURSEL, 0, 0);
+                if (choice == CB_ERR) return 0;
+                setThemeMode(static_cast<ThemeMode>(choice));
+                app->applyTheme();
+                return 0;
+            }
             switch (LOWORD(wParam)) {
                 case IDM_NEW: app->actionNew(); return 0;
                 case IDM_OPEN: app->actionOpen(); return 0;
@@ -497,7 +583,7 @@ LRESULT CALLBACK mainProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
             HFONT old = app->uiFont;
             app->uiFont = makeUiFont(app->dpi);
             for (HWND control : {app->prevPage, app->nextPage, app->pageLabel, app->zoomOut,
-                                 app->zoomIn, app->zoomLabel, app->status})
+                                 app->zoomIn, app->zoomLabel, app->theme})
                 SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(app->uiFont), TRUE);
             for (HWND control : app->fileButtons)
                 SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(app->uiFont), TRUE);
@@ -526,6 +612,9 @@ LRESULT CALLBACK mainProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
 // reason to pull in the wide entry point and -municode.
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int show) {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    // Before any window exists: uxtheme decides how to draw a control the
+    // first time it is created.
+    cvb::initTheme();
 
     INITCOMMONCONTROLSEX controls{};
     controls.dwSize = sizeof controls;
@@ -544,8 +633,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int show) {
     cvb::App app;
     HWND window = CreateWindowExW(0, L"CVBuilderMain", L"CV Builder",
                                   WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT,
-                                  CW_USEDEFAULT, 1500, 950, nullptr, cvb::buildMenu(), instance,
-                                  &app);
+                                  CW_USEDEFAULT, 1500, 950, nullptr, nullptr, instance, &app);
     if (!window) return 1;
     ShowWindow(window, show);
     UpdateWindow(window);
