@@ -192,6 +192,18 @@ const std::vector<Preset>& presets() {
                                      "#6b7280", "#9ca3af", "#0f766e", "#1d4ed8")},
         {L"Warm cream", makeTheme("#f7f3ea", "#ded5c3", "#2b2113", "#4d4335",
                                   "#6f6553", "#9c9382", "#b4530a", "#3c6e47")},
+        {L"Forest green", makeTheme("#0f1712", "#26372c", "#eaf5ec", "#a9bdae",
+                                    "#87998c", "#4d5c52", "#5fd18c", "#a3e635")},
+        {L"Deep plum", makeTheme("#160f1c", "#372a44", "#f1e9f7", "#bcaecb",
+                                 "#9686a8", "#5c4d70", "#d18fff", "#ff8fd1")},
+        {L"Slate mono", makeTheme("#15181d", "#2c313a", "#eceff3", "#a3aab6",
+                                  "#7d8593", "#454b56", "#8fa3c8", "#c8b98f")},
+        {L"Nordic ice", makeTheme("#e5e9f0", "#c7ceda", "#2e3440", "#4c566a",
+                                  "#5e6a82", "#8c95a8", "#5e81ac", "#88c0d0")},
+        {L"Solar amber", makeTheme("#1c1810", "#3a3220", "#f7ecd0", "#c9b98f",
+                                   "#a3936a", "#6b5f42", "#f5a623", "#e05e3e")},
+        {L"Rose gold", makeTheme("#fdf5f3", "#eaddda", "#3a1f22", "#6b4a4d",
+                                 "#8f6d6f", "#b89a9c", "#c2185b", "#b06a35")},
     };
     return kPresets;
 }
