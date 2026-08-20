@@ -704,7 +704,7 @@ public:
         subtitle_ = makeEdit(host, L"Учреждение, год / статус");
         writeText(title_, item_.title);
         writeText(subtitle_, item_.subtitle);
-        highlight_ = makeCheck(host, L"выделить (синим)");
+        highlight_ = makeCheck(host, L"выделить");
         Button_SetCheck(highlight_, item_.highlight ? BST_CHECKED : BST_UNCHECKED);
     }
 
