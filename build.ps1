@@ -29,14 +29,7 @@ wsl -d $Distro -- bash -lc "cd '$wslPath' && $recipe"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Сборка не удалась." -ForegroundColor Red
     exit $LASTEXITCODE
-}                                v\\\
-
-\\
-
-
-
-
-iiii                                                                                                                        ,   nn ,nmn,m n0-9poi;kl,./67yutjgmhv bn456yerthdfgcxbn v
+} 
 
 Copy-Item sample_cv.json build\ -Force
 Write-Host ""
