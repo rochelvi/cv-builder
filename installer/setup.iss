@@ -12,7 +12,7 @@
 ; shortcuts where the user asked for them, and registering an uninstaller.
 
 #define AppName "CV Builder"
-#define AppVersion "2.0.0"
+#define AppVersion "1.2"
 #define AppPublisher "Daniil Mishin"
 #define AppUrl "https://github.com/rochelvi/cv-builder"
 #define AppExe "CVBuilder.exe"
