@@ -57,15 +57,19 @@ $(BUILD)/cvcli.exe: $(CORE_OBJ) $(CLI_OBJ) $(CLI_RES)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
-$(BUILD)/%.o: %.cpp
+# Everything depends on the Makefile itself: it holds the compiler flags and
+# the list of libraries, so editing it has to invalidate what was built with
+# the old ones. Without this, changing CXXFLAGS leaves every stale object in
+# place and make cheerfully reports there is nothing to do.
+$(BUILD)/%.o: %.cpp Makefile
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 
-$(RES_OBJ): res/app.rc res/app.manifest res/app.ico res/version.h
+$(RES_OBJ): res/app.rc res/app.manifest res/app.ico res/version.h Makefile
 	@mkdir -p $(dir $@)
 	$(WINDRES) $(WINDRESFLAGS) -i $< -o $@
 
-$(CLI_RES): res/cli.rc res/app.ico res/version.h
+$(CLI_RES): res/cli.rc res/app.ico res/version.h Makefile
 	@mkdir -p $(dir $@)
 	$(WINDRES) $(WINDRESFLAGS) -i $< -o $@
 
