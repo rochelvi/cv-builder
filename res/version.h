@@ -28,6 +28,18 @@
 #define VER_FILEVERSION VER_MAJOR, VER_MINOR, VER_PATCH, 0
 #define VER_VERSION_STR VER_STR(VER_MAJOR) "." VER_STR(VER_MINOR) "." VER_STR(VER_PATCH)
 
+// ------------------------------------------------------------- the channel
+// What kind of build this is: "release", "beta", "alpha", "rc" - anything
+// short. It shows in the bottom right corner of the window as v1.2.0-release,
+// so a copy someone is running can say what it is without being asked to open
+// its own file properties.
+//
+// Deliberately kept out of the version resource: setup.iss feeds ProductVersion
+// to Inno as the installer version, and Inno rejects anything that is not a
+// plain number. The channel is a label for people, the version is for Windows.
+#define VER_CHANNEL "release"
+#define VER_DISPLAY_STR "v" VER_VERSION_STR "-" VER_CHANNEL
+
 // ------------------------------------------------------------ who wrote it
 #define VER_PRODUCT          "CV Builder"
 #define VER_COMPANY          "Daniil Mishin"

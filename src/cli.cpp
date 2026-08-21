@@ -2,6 +2,7 @@
 // comparison against a reference implementation.
 //
 //   cvcli in.json out.pdf [--dump-ops ops.json]
+//   cvcli --version
 #include <windows.h>
 #include <shellapi.h>
 
@@ -13,6 +14,7 @@
 #include "layout.h"
 #include "model.h"
 #include "pdf.h"
+#include "version.h"
 
 namespace {
 
@@ -68,11 +70,26 @@ int main() {
     // Wide arguments, so paths with non-ASCII characters survive.
     int argc = 0;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (!argv || argc < 3) {
-        std::fprintf(stderr, "usage: cvcli in.json out.pdf [--dump-ops ops.json]\n");
+    if (!argv) return 2;
+    SetConsoleOutputCP(CP_UTF8);
+
+    // Accepted anywhere on the line and answered before anything is read
+    // from disk: the console front end has no window to carry the version
+    // the way the GUI does, and "which build produced this PDF?" is what a
+    // script or a bug report needs answered. Same string the window shows.
+    for (int i = 1; i < argc; ++i) {
+        if (std::wstring(argv[i]) == L"--version") {
+            std::printf("%s %s\n%s\n", VER_PRODUCT, VER_DISPLAY_STR, VER_COPYRIGHT);
+            return 0;
+        }
+    }
+
+    if (argc < 3) {
+        std::fprintf(stderr,
+                     "usage: cvcli in.json out.pdf [--dump-ops ops.json]\n"
+                     "       cvcli --version\n");
         return 2;
     }
-    SetConsoleOutputCP(CP_UTF8);
 
     std::string error;
     cvb::CV cv;

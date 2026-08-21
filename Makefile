@@ -27,7 +27,7 @@ WINDRESFLAGS := -I res --codepage=65001
 
 # gnu++17 rather than c++17: strict ISO mode hides the MSVC-style _wfopen that
 # wide (Unicode) file paths need on Windows.
-CXXFLAGS := -std=gnu++17 -O2 -Wall -Wextra -Wno-unknown-pragmas \
+CXXFLAGS := -std=gnu++17 -O2 -Wall -Wextra -Wno-unknown-pragmas -Ires \
             -DUNICODE -D_UNICODE -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 \
             -ffunction-sections -fdata-sections
 LDFLAGS  := -static -static-libgcc -static-libstdc++ -Wl,--gc-sections

@@ -14,6 +14,7 @@
 
 #include "pdf.h"
 #include "ui.h"
+#include "version.h"
 
 namespace cvb {
 namespace {
@@ -37,6 +38,14 @@ constexpr int kToolButtonWidth = 118;
 constexpr int kSmallButton = 30;
 constexpr int kThemeWidth = 160;
 constexpr int kStatusHeight = 24;
+
+// "v1.2.0-release", built once. The macro is a run of narrow literals, so it
+// cannot carry an L prefix; widening it here keeps the paint path free of the
+// conversion.
+const std::wstring& versionLabel() {
+    static const std::wstring label = widen(VER_DISPLAY_STR);
+    return label;
+}
 
 // In the order of ThemeMode, so the selection index is the mode.
 const wchar_t* const kThemeNames[] = {L"Как в системе", L"Светлая", L"Тёмная"};
@@ -195,6 +204,20 @@ void App::paintChrome(HDC dc) {
     SetBkMode(dc, TRANSPARENT);
     SetTextColor(dc, ui().subtext);
     HGDIOBJ oldFont = SelectObject(dc, uiFont);
+
+    // The build names itself in the corner opposite the status message. It is
+    // measured before the message is drawn, so the message gets the width that
+    // is left and ellipsizes against the version instead of running underneath
+    // it on a narrow window.
+    const std::wstring& version = versionLabel();
+    SIZE size{};
+    GetTextExtentPoint32W(dc, version.c_str(), static_cast<int>(version.size()), &size);
+    RECT versionBox = text;
+    versionBox.left = versionBox.right - size.cx;
+    DrawTextW(dc, version.c_str(), -1, &versionBox,
+              DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
+    text.right = versionBox.left - scale(12);
+
     DrawTextW(dc, status.c_str(), -1, &text,
               DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     SelectObject(dc, oldFont);
