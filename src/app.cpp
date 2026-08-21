@@ -26,6 +26,9 @@ enum : int {
     IDC_PAGE_LABEL, IDC_ZOOM_LABEL, IDC_THEME,
 };
 
+// Matches the ICON line in res/app.rc.
+constexpr int IDI_APP = 1;
+
 constexpr UINT kRefreshTimer = 1;
 constexpr UINT kRefreshDelay = 200;  // ms of quiet before the preview redraws
 
@@ -638,7 +641,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int show) {
     cls.hInstance = instance;
     cls.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     cls.lpszClassName = L"CVBuilderMain";
-    cls.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(1));
+    // LoadIcon only ever returns the large size; the title bar and the
+    // Alt+Tab list want the 16 px drawing, which LoadImage can ask for.
+    cls.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(cvb::IDI_APP));
+    cls.hIconSm = static_cast<HICON>(
+        LoadImageW(instance, MAKEINTRESOURCEW(cvb::IDI_APP), IMAGE_ICON,
+                   GetSystemMetrics(SM_CXSMICON),
+                   GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR));
     RegisterClassExW(&cls);
 
     cvb::App app;

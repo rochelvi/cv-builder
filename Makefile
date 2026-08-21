@@ -55,7 +55,7 @@ $(BUILD)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 
-$(RES_OBJ): res/app.rc res/app.manifest
+$(RES_OBJ): res/app.rc res/app.manifest res/app.ico
 	@mkdir -p $(dir $@)
 	$(WINDRES) -I res -i $< -o $@
 
