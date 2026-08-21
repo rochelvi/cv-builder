@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>School 21 CTF</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <canvas id="matrix" aria-hidden="true"></canvas>
+
+  <header class="site-header">
+    <nav class="nav container">
+      <a href="#" class="logo"><span class="accent">S21</span> CTF</a>
+      <ul class="nav-links">
+        <li><a href="#about">About</a></li>
+        <li><a href="#schedule">Schedule</a></li>
+        <li><a href="#categories">Categories</a></li>
+        <li><a href="#register">Register</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="hero">
+      <div class="container">
+        <p class="eyebrow">Capture The Flag</p>
+        <h1 class="hero-title">
+          <span id="typed"></span><span class="cursor" aria-hidden="true">_</span>
+        </h1>
+        <p class="hero-subtitle">
+          A cybersecurity challenge for School 21 students. Solve tasks, earn flags, and climb the leaderboard.
+        </p>
+        <div class="hero-actions">
+          <a href="#register" class="btn btn-primary">Join the Event</a>
+          <a href="#about" class="btn btn-ghost">Learn More</a>
+        </div>
+        <div class="countdown" id="countdown" aria-label="Countdown to event">
+          <div class="time"><span id="days">00</span><small>Days</small></div>
+          <div class="time"><span id="hours">00</span><small>Hours</small></div>
+          <div class="time"><span id="minutes">00</span><small>Minutes</small></div>
+          <div class="time"><span id="seconds">00</span><small>Seconds</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="about">
+      <div class="container">
+        <h2 class="section-title">What is School 21 CTF?</h2>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3>Hack & Learn</h3>
+            <p>Practice reverse engineering, cryptography, web exploitation, forensics, and more in a safe environment.</p>
+          </div>
+          <div class="card">
+            <h3>Team Up</h3>
+            <p>Compete solo or form a squad of up to 4 players to tackle challenges together.</p>
+          </div>
+          <div class="card">
+            <h3>Win Prizes</h3>
+            <p>Top teams and first-blood solvers earn swag, certificates, and School 21 leaderboard points.</p>
+          </div>
+          <div class="card">
+            <h3>All Levels Welcome</h3>
+            <p>Challenges range from beginner-friendly to advanced, so everyone can contribute.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" id="schedule">
+      <div class="container">
+        <h2 class="section-title">Schedule</h2>
+        <div class="timeline">
+          <div class="timeline-item">
+            <span class="timeline-date">09:00</span>
+            <div>
+              <h3>Check-in & Setup</h3>
+              <p>Arrive, grab your credentials, and join the Discord help channel.</p>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <span class="timeline-date">10:00</span>
+            <div>
+              <h3>Opening Talk</h3>
+              <p>Rules, platform walkthrough, and tips from last year's winners.</p>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <span class="timeline-date">11:00</span>
+            <div>
+              <h3>Competition Start</h3>
+              <p>The CTF board opens. Find the easiest flag first.</p>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <span class="timeline-date">19:00</span>
+            <div>
+              <h3>Closing & Awards</h3>
+              <p>Final results, write-up sharing, and prize ceremony.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="categories">
+      <div class="container">
+        <h2 class="section-title">Categories</h2>
+        <div class="chips">
+          <span class="chip">Pwn</span>
+          <span class="chip">Reverse</span>
+          <span class="chip">Web</span>
+          <span class="chip">Crypto</span>
+          <span class="chip">Forensics</span>
+          <span class="chip">OSINT</span>
+          <span class="chip">Misc</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section cta" id="register">
+      <div class="container">
+        <h2 class="section-title">Ready to play?</h2>
+        <p class="cta-text">Register now and get early access to warm-up challenges.</p>
+        <form class="register-form" id="register-form" novalidate>
+          <label for="email" class="sr-only">Email</label>
+          <input type="email" id="email" name="email" placeholder="your@school21.ru" required>
+          <button type="submit" class="btn btn-primary">Register</button>
+        </form>
+        <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Made by <a href="https://21-school.ru" target="_blank" rel="noopener">School 21</a> students.</p>
+      <p class="legal">No actual systems are harmed during this CTF.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
