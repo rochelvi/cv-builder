@@ -20,6 +20,11 @@ CXX     := $(if $(shell command -v $(CROSS)-g++ 2>/dev/null),$(CROSS)-g++,g++)
 WINDRES := $(if $(shell command -v $(CROSS)-windres 2>/dev/null),$(CROSS)-windres,windres)
 BUILD   ?= build
 
+# The .rc files are UTF-8 and hold Russian descriptions; without this windres
+# reads them as a single-byte code page and the strings come out as mojibake,
+# truncated at the first byte it cannot make sense of.
+WINDRESFLAGS := -I res --codepage=65001
+
 # gnu++17 rather than c++17: strict ISO mode hides the MSVC-style _wfopen that
 # wide (Unicode) file paths need on Windows.
 CXXFLAGS := -std=gnu++17 -O2 -Wall -Wextra -Wno-unknown-pragmas \
@@ -38,6 +43,7 @@ CORE_OBJ := $(CORE_SRC:%.cpp=$(BUILD)/%.o)
 GUI_OBJ  := $(GUI_SRC:%.cpp=$(BUILD)/%.o)
 CLI_OBJ  := $(CLI_SRC:%.cpp=$(BUILD)/%.o)
 RES_OBJ  := $(BUILD)/res/app.o
+CLI_RES  := $(BUILD)/res/cli.o
 
 .PHONY: all cli clean
 all: $(BUILD)/CVBuilder.exe $(BUILD)/cvcli.exe
@@ -47,7 +53,7 @@ $(BUILD)/CVBuilder.exe: $(CORE_OBJ) $(GUI_OBJ) $(RES_OBJ)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -mwindows -o $@ $^ $(LDFLAGS) $(GUI_LIBS) $(LIBS)
 
-$(BUILD)/cvcli.exe: $(CORE_OBJ) $(CLI_OBJ)
+$(BUILD)/cvcli.exe: $(CORE_OBJ) $(CLI_OBJ) $(CLI_RES)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
@@ -55,9 +61,13 @@ $(BUILD)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 
-$(RES_OBJ): res/app.rc res/app.manifest res/app.ico
+$(RES_OBJ): res/app.rc res/app.manifest res/app.ico res/version.h
 	@mkdir -p $(dir $@)
-	$(WINDRES) -I res -i $< -o $@
+	$(WINDRES) $(WINDRESFLAGS) -i $< -o $@
+
+$(CLI_RES): res/cli.rc res/app.ico res/version.h
+	@mkdir -p $(dir $@)
+	$(WINDRES) $(WINDRESFLAGS) -i $< -o $@
 
 clean:
 	rm -rf $(BUILD)

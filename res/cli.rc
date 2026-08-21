@@ -1,0 +1,37 @@
+#include <winresrc.h>
+
+#include "version.h"
+
+// The console renderer wears the same icon as the GUI: the two are one
+// product, and the .ico is already in the tree. Only the description below
+// tells them apart in Explorer.
+1 ICON "app.ico"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION VER_FILEVERSION
+PRODUCTVERSION VER_FILEVERSION
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "041904b0"
+        BEGIN
+            VALUE "FileDescription", "Консольный рендерер резюме в PDF"
+            VALUE "FileVersion", VER_VERSION_STR
+            VALUE "InternalName", "cvcli"
+            VALUE "OriginalFilename", "cvcli.exe"
+            VALUE "ProductName", VER_PRODUCT
+            VALUE "ProductVersion", VER_VERSION_STR
+            VALUE "CompanyName", VER_COMPANY
+            VALUE "LegalCopyright", VER_COPYRIGHT
+            VALUE "Comments", "Рендерит JSON-резюме в PDF без графического интерфейса: cvcli.exe in.json out.pdf [--dump-ops ops.json]"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x419, 1200
+    END
+END

@@ -12,7 +12,12 @@
 ; shortcuts where the user asked for them, and registering an uninstaller.
 
 #define AppName "CV Builder"
-#define AppVersion "1.2"
+; Read straight out of the executable that was just built, whose version
+; comes from res\version.h - so the version lives in exactly one file.
+; This means the .exe has to exist before ISCC runs; build.ps1 -Installer
+; builds first, and compiling this script on its own without a build will
+; stop here with a clear error rather than shipping a stale number.
+#define AppVersion GetStringFileInfo("..\build\CVBuilder.exe", "ProductVersion")
 #define AppPublisher "Daniil Mishin"
 #define AppUrl "https://github.com/rochelvi/cv-builder"
 #define AppExe "CVBuilder.exe"
