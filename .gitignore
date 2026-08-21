@@ -3,3 +3,9 @@ build/
 *.d
 *.exe
 *.pdf
+
+# Personal release tooling and its output: the published artifacts are
+# attached to GitHub releases, not committed, and the script that builds
+# them is local workflow rather than part of the project.
+releases/
+release.ps1
