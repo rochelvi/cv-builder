@@ -28,6 +28,12 @@ void put32(std::vector<uint8_t>& out, uint32_t v) {
     out.push_back(static_cast<uint8_t>(v));
 }
 
+// A malformed cmap can describe billions of code points in a few hundred
+// bytes of range records, so the parsers stop once this many mappings are
+// stored; a real font needs far fewer than the whole Unicode range.
+constexpr size_t kMaxCmapEntries = 262144;
+constexpr uint32_t kMaxCodePoint = 0x10FFFF;
+
 uint32_t tagOf(const char* tag) {
     return (static_cast<uint32_t>(static_cast<uint8_t>(tag[0])) << 24) |
            (static_cast<uint32_t>(static_cast<uint8_t>(tag[1])) << 16) |
@@ -251,6 +257,7 @@ void Font::parseCmap4(uint32_t offset) {
         uint16_t delta = be16(idDelta + seg * 2);
         uint16_t rangeOffset = be16(idRangeOffset + seg * 2);
         for (uint32_t cp = first; cp <= last; ++cp) {
+            if (cmap_.size() >= kMaxCmapEntries) return;
             uint16_t gid;
             if (rangeOffset == 0) {
                 gid = static_cast<uint16_t>(cp + delta);
@@ -260,7 +267,7 @@ void Font::parseCmap4(uint32_t offset) {
                 gid = be16(at);
                 if (gid) gid = static_cast<uint16_t>(gid + delta);
             }
-            if (gid) cmap_.emplace(cp, gid);
+            if (gid && gid < numGlyphs_) cmap_.emplace(cp, gid);
         }
     }
 }
@@ -273,8 +280,10 @@ void Font::parseCmap12(uint32_t offset) {
     for (uint32_t g = 0; g < groups; ++g) {
         const uint8_t* rec = t + 16 + g * 12;
         uint32_t first = be32(rec), last = be32(rec + 4), startGlyph = be32(rec + 8);
-        if (last < first || last - first > 0x10FFFF) continue;
+        if (last < first || first > kMaxCodePoint) continue;
+        if (last > kMaxCodePoint) last = kMaxCodePoint;
         for (uint32_t cp = first; cp <= last; ++cp) {
+            if (cmap_.size() >= kMaxCmapEntries) return;
             uint32_t gid = startGlyph + (cp - first);
             if (gid && gid < static_cast<uint32_t>(numGlyphs_))
                 cmap_.emplace(cp, static_cast<uint16_t>(gid));
