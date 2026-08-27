@@ -7,6 +7,7 @@
 // it is the same run of glyphs at a different scale.
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -59,8 +60,8 @@ private:
     bool readHead(std::string& error);
     bool readMetrics(std::string& error);
     void readCmap();
-    void parseCmap4(uint32_t offset);
-    void parseCmap12(uint32_t offset);
+    void parseCmap4(size_t offset, size_t available);
+    void parseCmap12(size_t offset, size_t available);
     void collectComponents(uint16_t glyph, std::vector<bool>& used, int depth) const;
 
     std::wstring path_;

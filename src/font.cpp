@@ -17,6 +17,10 @@ uint32_t be32(const uint8_t* p) {
            (static_cast<uint32_t>(p[2]) << 8) | static_cast<uint32_t>(p[3]);
 }
 
+bool hasRange(size_t size, size_t offset, size_t length) {
+    return offset <= size && length <= size - offset;
+}
+
 void put16(std::vector<uint8_t>& out, uint16_t v) {
     out.push_back(static_cast<uint8_t>(v >> 8));
     out.push_back(static_cast<uint8_t>(v));
@@ -214,50 +218,67 @@ void Font::readCmap() {
     const uint8_t* base = data_.data() + cmap->offset;
     int count = be16(base + 2);
 
-    uint32_t best4 = 0, best12 = 0;
+    struct Candidate {
+        size_t offset = 0;
+        size_t available = 0;
+        bool found = false;
+    };
+    Candidate best4, best12;
     for (int i = 0; i < count; ++i) {
-        const uint8_t* rec = base + 4 + 8 * i;
-        if (static_cast<size_t>(4 + 8 * i + 8) > cmap->length) break;
+        size_t recOffset = 4 + static_cast<size_t>(i) * 8;
+        if (!hasRange(cmap->length, recOffset, 8)) break;
+        const uint8_t* rec = base + recOffset;
         int platform = be16(rec);
         int encoding = be16(rec + 2);
-        uint32_t offset = cmap->offset + be32(rec + 4);
-        if (offset + 4 > data_.size()) continue;
+        size_t relativeOffset = be32(rec + 4);
+        if (!hasRange(cmap->length, relativeOffset, 4)) continue;
+        size_t offset = static_cast<size_t>(cmap->offset) + relativeOffset;
         int format = be16(data_.data() + offset);
         bool unicode = (platform == 3 && (encoding == 1 || encoding == 10)) || platform == 0;
         if (!unicode) continue;
-        if (format == 12 && !best12) best12 = offset;
-        if (format == 4 && !best4) best4 = offset;
+        Candidate candidate{offset, cmap->length - relativeOffset, true};
+        if (format == 12 && !best12.found) best12 = candidate;
+        if (format == 4 && !best4.found) best4 = candidate;
     }
     // Format 12 covers the astral planes; format 4 is the universal fallback.
-    if (best12) parseCmap12(best12);
-    if (cmap_.empty() && best4) parseCmap4(best4);
+    if (best12.found) parseCmap12(best12.offset, best12.available);
+    if (cmap_.empty() && best4.found) parseCmap4(best4.offset, best4.available);
 }
 
-void Font::parseCmap4(uint32_t offset) {
+void Font::parseCmap4(size_t offset, size_t available) {
+    if (!hasRange(data_.size(), offset, available) || available < 4) return;
     const uint8_t* t = data_.data() + offset;
-    uint32_t length = be16(t + 2);
-    if (offset + length > data_.size() || length < 16) return;
-    int segCount = be16(t + 6) / 2;
-    const uint8_t* endCode = t + 14;
-    const uint8_t* startCode = endCode + segCount * 2 + 2;
-    const uint8_t* idDelta = startCode + segCount * 2;
-    const uint8_t* idRangeOffset = idDelta + segCount * 2;
-    if (static_cast<size_t>(idRangeOffset + segCount * 2 - t) > length) return;
+    size_t length = be16(t + 2);
+    if (length < 16 || length > available) return;
+    size_t segCountX2 = be16(t + 6);
+    if (segCountX2 == 0 || (segCountX2 & 1) != 0) return;
+    size_t segCount = segCountX2 / 2;
+    if (segCount > (length - 16) / 8) return;
 
-    for (int seg = 0; seg < segCount; ++seg) {
-        uint32_t first = be16(startCode + seg * 2);
-        uint32_t last = be16(endCode + seg * 2);
+    size_t endCode = 14;
+    size_t startCode = endCode + segCount * 2 + 2;
+    size_t idDelta = startCode + segCount * 2;
+    size_t idRangeOffset = idDelta + segCount * 2;
+
+    for (size_t seg = 0; seg < segCount; ++seg) {
+        uint32_t first = be16(t + startCode + seg * 2);
+        uint32_t last = be16(t + endCode + seg * 2);
         if (first > last) continue;
-        uint16_t delta = be16(idDelta + seg * 2);
-        uint16_t rangeOffset = be16(idRangeOffset + seg * 2);
+        uint16_t delta = be16(t + idDelta + seg * 2);
+        uint16_t rangeOffset = be16(t + idRangeOffset + seg * 2);
         for (uint32_t cp = first; cp <= last; ++cp) {
             uint16_t gid;
             if (rangeOffset == 0) {
                 gid = static_cast<uint16_t>(cp + delta);
             } else {
-                const uint8_t* at = idRangeOffset + seg * 2 + rangeOffset + (cp - first) * 2;
-                if (at + 2 > data_.data() + data_.size()) continue;
-                gid = be16(at);
+                size_t glyphOffset = idRangeOffset + seg * 2;
+                if (rangeOffset > length - glyphOffset) continue;
+                glyphOffset += rangeOffset;
+                size_t codeOffset = static_cast<size_t>(cp - first) * 2;
+                if (codeOffset > length - glyphOffset) continue;
+                glyphOffset += codeOffset;
+                if (!hasRange(length, glyphOffset, 2)) continue;
+                gid = be16(t + glyphOffset);
                 if (gid) gid = static_cast<uint16_t>(gid + delta);
             }
             if (gid) cmap_.emplace(cp, gid);
@@ -265,17 +286,19 @@ void Font::parseCmap4(uint32_t offset) {
     }
 }
 
-void Font::parseCmap12(uint32_t offset) {
+void Font::parseCmap12(size_t offset, size_t available) {
+    if (!hasRange(data_.size(), offset, available) || available < 16) return;
     const uint8_t* t = data_.data() + offset;
-    if (offset + 16 > data_.size()) return;
+    size_t length = be32(t + 4);
+    if (length < 16 || length > available) return;
     uint32_t groups = be32(t + 12);
-    if (offset + 16 + groups * 12ull > data_.size()) return;
+    if (groups > (length - 16) / 12) return;
     for (uint32_t g = 0; g < groups; ++g) {
-        const uint8_t* rec = t + 16 + g * 12;
+        const uint8_t* rec = t + 16 + static_cast<size_t>(g) * 12;
         uint32_t first = be32(rec), last = be32(rec + 4), startGlyph = be32(rec + 8);
-        if (last < first || last - first > 0x10FFFF) continue;
+        if (last < first || last > 0x10FFFF) continue;
         for (uint32_t cp = first; cp <= last; ++cp) {
-            uint32_t gid = startGlyph + (cp - first);
+            uint64_t gid = static_cast<uint64_t>(startGlyph) + (cp - first);
             if (gid && gid < static_cast<uint32_t>(numGlyphs_))
                 cmap_.emplace(cp, static_cast<uint16_t>(gid));
         }
