@@ -29,13 +29,11 @@ if ($Clean -and (Test-Path "build\$preset")) {
     Remove-Item -Recurse -Force "build\$preset"
 }
 
-# cmake may be an apt package on PATH or a tarball unpacked into ~/.local; take
-# whichever is there rather than insisting on one.
-$findCmake = 'CMAKE=$(command -v cmake || echo $HOME/.local/bin/cmake); ' +
-             'test -x "$CMAKE" || { echo "cmake not found: sudo apt install -y cmake" >&2; exit 1; }'
-
+# The WSL side lives in a script of its own. PowerShell 7 rewrites embedded quotes
+# when it passes arguments to a native program, so a shell one-liner handed to
+# `wsl -- bash -c` arrives mangled; a script needs no quoting to survive the trip.
 Write-Host "Сборка в WSL ($Distro): $wslPath"
-wsl -d $Distro -- bash -c "$findCmake; cd '$wslPath' && `$CMAKE --preset $preset && `$CMAKE --build build/$preset -j`$(nproc)"
+wsl -d $Distro --cd $wslPath -- bash tools/build-windows.sh $preset
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Сборка не удалась." -ForegroundColor Red
     exit $LASTEXITCODE

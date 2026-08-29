@@ -51,18 +51,21 @@ else still builds; CMake says so and turns `CVB_BUILD_QT_UI` off.
 
 ## This machine, specifically
 
-No compiler on Windows: everything is built in WSL (`wsl -d Ubuntu`), which has
-g++ and mingw-w64 but no cmake or Qt from apt, and `sudo` wants a password.
-What was set up, all under `$HOME` and without root:
+No compiler on Windows: everything is built in WSL (`wsl -d Ubuntu`), where `sudo`
+needs no password. `cmake`, `qt6-base-dev` and `qt6-wayland` are installed from
+apt, so the plain commands work and nothing needs pointing at anything:
 
-| What | Where | How |
-| --- | --- | --- |
-| CMake 4.4 | `~/.local/bin/cmake` | official tarball unpacked into `~/.local/opt` |
-| Qt 6.8.3 | `~/Qt/6.8.3/gcc_64` | `aqtinstall` in a venv at `~/qtenv` |
-| OpenGL dev files | `~/qtsysroot/tree` | `tools/qtsysroot.sh` - unpacks .deb files |
+```bash
+cmake --preset linux && cmake --build build/linux -j && ctest --preset linux
+```
 
-Qt6::Gui insists on the OpenGL imported targets even for a Widgets program, so
-configuring needs the shim:
+`wsl -d Ubuntu -- bash tools/run-qt-wslg.sh` puts the Qt window on the Windows
+desktop through WSLg. `resume_qt_shot` renders it to a PNG with no display at all,
+which is the more reliable way to look at it.
+
+A Qt unpacked under `$HOME` by `aqtinstall` also works, and then Qt6::Gui insists
+on the OpenGL imported targets even for a Widgets program, which is what
+`tools/qtsysroot.sh` and `tools/qtshim.cmake` are for:
 
 ```bash
 cmake --preset linux \
@@ -70,10 +73,13 @@ cmake --preset linux \
       -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=tools/qtshim.cmake
 ```
 
-None of that is needed on a machine with `qt6-base-dev` installed.
+Two traps that cost time here:
 
-Also: the shell these commands are typed into expands `$VAR` before bash sees it.
-Anything with shell variables in it belongs in a script file under `tools/`, not
-on the command line - the same mistake otherwise turns `cmake-$V.tar.gz` into
-`cmake-.tar.gz` and takes ten minutes to notice. And `/tmp` in WSL does not
-survive the distribution shutting down when idle; caches go under `$HOME`.
+* **Quoting through `wsl.exe`.** PowerShell 7 rewrites embedded quotes when it
+  passes arguments to a native program, and the shell these commands are typed
+  into expands `$VAR` before bash sees it. Anything with quotes or shell variables
+  belongs in a script under `tools/` - which is why `build.ps1` calls
+  `tools/build-windows.sh` instead of a one-liner. The same mistake otherwise
+  turns `cmake-$V.tar.gz` into `cmake-.tar.gz` and takes ten minutes to notice.
+* **`/tmp` in WSL does not survive the distribution shutting down when idle.**
+  Caches go under `$HOME`.
