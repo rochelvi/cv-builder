@@ -69,7 +69,13 @@ option(CVB_BUILD_TESTS "Build the core test suite" ON)
 if(CVB_BUILD_QT_UI)
     # Only these four. No QML, no Network, no WebEngine - a resume editor needs a
     # window, a painter and a printer.
-    find_package(Qt6 6.5 QUIET COMPONENTS Core Gui Widgets PrintSupport)
+    #
+    # 6.4 rather than 6.5, because that is what Ubuntu 24.04 LTS and Debian 13
+    # ship and it is what most people actually have. The one thing newer that the
+    # front end would like - asking the desktop for its colour scheme through
+    # QStyleHints - is behind a version check with a fallback, and a build against
+    # 6.4.3 was tried to make sure that path still compiles and runs.
+    find_package(Qt6 6.4 QUIET COMPONENTS Core Gui Widgets PrintSupport)
     if(NOT Qt6_FOUND)
         message(STATUS "Qt 6 not found: building without the portable front end. "
                        "Point CMAKE_PREFIX_PATH at a Qt installation, or install "

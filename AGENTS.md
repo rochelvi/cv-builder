@@ -46,7 +46,9 @@ grep -rn 'windows.h\|_WIN32\|d2d1\|dwrite' src/core src/render   # must be silen
 
 ## Qt
 
-Only Core, Gui, Widgets and PrintSupport, 6.5 or newer. Without Qt everything
+Only Core, Gui, Widgets and PrintSupport, 6.4 or newer - which is what Ubuntu
+24.04 LTS ships. Verified against 6.4.3, 6.8.3 and 6.10.2; the one call that wants
+6.5 (`QStyleHints::colorScheme`) is behind a version check. Without Qt everything
 else still builds; CMake says so and turns `CVB_BUILD_QT_UI` off.
 
 ## This machine, specifically

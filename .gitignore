@@ -13,3 +13,6 @@ release.ps1
 # Reference output captured before the cross-platform migration, used to prove
 # the refactor changed no bytes. Local workflow, not part of the project.
 .baseline/
+
+# aqtinstall's log, left behind when Qt is fetched into a home directory.
+aqtinstall.log
