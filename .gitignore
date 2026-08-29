@@ -9,3 +9,7 @@ build/
 # them is local workflow rather than part of the project.
 releases/
 release.ps1
+
+# Reference output captured before the cross-platform migration, used to prove
+# the refactor changed no bytes. Local workflow, not part of the project.
+.baseline/
