@@ -1,9 +1,8 @@
 #include "model.h"
 
 #include <algorithm>
-#include <cstdio>
-#include <cwchar>  // _wfopen: Unicode paths
 
+#include "file.h"
 #include "json.h"
 
 namespace cvb {
@@ -12,31 +11,9 @@ const char* const kThemeKeys[TR_Count] = {
     "background", "rule", "heading", "body", "subtle", "faint", "accent", "accent2",
 };
 
-const wchar_t* const kThemeLabels[TR_Count] = {
-    L"Фон страницы",
-    L"Разделители",
-    L"Заголовки (имя, должности)",
-    L"Основной текст",
-    L"Вторичный текст (компания, контакты)",
-    L"Даты и неактивные записи",
-    L"Акцент 1 (секции, маркеры)",
-    L"Акцент 2 (soft skills, образование)",
-};
-
 const char* const kSectionIds[kSectionCount] = {
     "summary", "studies", "jobs", "skill_groups", "soft_skills", "education", "lab",
     "volunteering",
-};
-
-const wchar_t* const kSectionEditorNames[kSectionCount] = {
-    L"О себе",
-    L"Учёба (подробно)",
-    L"Опыт работы",
-    L"Технические навыки",
-    L"Soft skills",
-    L"Сертификаты и курсы",
-    L"Личная лаборатория",
-    L"Волонтёрство",
 };
 
 namespace {
@@ -157,53 +134,31 @@ js::Value writeStrings(const std::vector<std::string>& items) {
     return js::Value(std::move(out));
 }
 
-bool readFile(const std::wstring& path, std::string& out, std::string& error) {
-    FILE* fh = _wfopen(path.c_str(), L"rb");
-    if (!fh) { error = "не удалось открыть файл"; return false; }
-    out.clear();
-    char buf[8192];
-    size_t n;
-    while ((n = std::fread(buf, 1, sizeof buf, fh)) > 0) out.append(buf, n);
-    bool ok = std::ferror(fh) == 0;
-    std::fclose(fh);
-    if (!ok) error = "ошибка чтения файла";
-    return ok;
-}
-
-bool writeFile(const std::wstring& path, const std::string& data, std::string& error) {
-    FILE* fh = _wfopen(path.c_str(), L"wb");
-    if (!fh) { error = "не удалось создать файл"; return false; }
-    bool ok = std::fwrite(data.data(), 1, data.size(), fh) == data.size();
-    if (std::fclose(fh) != 0) ok = false;
-    if (!ok) error = "ошибка записи файла";
-    return ok;
-}
-
 }  // namespace
 
 const std::vector<Preset>& presets() {
     static const std::vector<Preset> kPresets = {
-        {L"Тёмная (оригинал)", Theme()},
-        {L"Midnight blue", makeTheme("#0b1020", "#22304a", "#eaf1ff", "#a8b6cf",
-                                     "#8593ad", "#4d5c78", "#5cc8ff", "#b39bff")},
-        {L"Graphite orange", makeTheme("#141414", "#333333", "#f2f2f2", "#b0b0b0",
-                                       "#8c8c8c", "#5a5a5a", "#ff8c42", "#ffd166")},
-        {L"Paper (light)", makeTheme("#ffffff", "#d9dee5", "#111827", "#374151",
-                                     "#6b7280", "#9ca3af", "#0f766e", "#1d4ed8")},
-        {L"Warm cream", makeTheme("#f7f3ea", "#ded5c3", "#2b2113", "#4d4335",
-                                  "#6f6553", "#9c9382", "#b4530a", "#3c6e47")},
-        {L"Forest green", makeTheme("#0f1712", "#26372c", "#eaf5ec", "#a9bdae",
-                                    "#87998c", "#4d5c52", "#5fd18c", "#a3e635")},
-        {L"Deep plum", makeTheme("#160f1c", "#372a44", "#f1e9f7", "#bcaecb",
-                                 "#9686a8", "#5c4d70", "#d18fff", "#ff8fd1")},
-        {L"Slate mono", makeTheme("#15181d", "#2c313a", "#eceff3", "#a3aab6",
-                                  "#7d8593", "#454b56", "#8fa3c8", "#c8b98f")},
-        {L"Nordic ice", makeTheme("#e5e9f0", "#c7ceda", "#2e3440", "#4c566a",
-                                  "#5e6a82", "#8c95a8", "#5e81ac", "#88c0d0")},
-        {L"Solar amber", makeTheme("#1c1810", "#3a3220", "#f7ecd0", "#c9b98f",
-                                   "#a3936a", "#6b5f42", "#f5a623", "#e05e3e")},
-        {L"Rose gold", makeTheme("#fdf5f3", "#eaddda", "#3a1f22", "#6b4a4d",
-                                 "#8f6d6f", "#b89a9c", "#c2185b", "#b06a35")},
+        {"Тёмная (оригинал)", Theme()},
+        {"Midnight blue", makeTheme("#0b1020", "#22304a", "#eaf1ff", "#a8b6cf",
+                                    "#8593ad", "#4d5c78", "#5cc8ff", "#b39bff")},
+        {"Graphite orange", makeTheme("#141414", "#333333", "#f2f2f2", "#b0b0b0",
+                                      "#8c8c8c", "#5a5a5a", "#ff8c42", "#ffd166")},
+        {"Paper (light)", makeTheme("#ffffff", "#d9dee5", "#111827", "#374151",
+                                    "#6b7280", "#9ca3af", "#0f766e", "#1d4ed8")},
+        {"Warm cream", makeTheme("#f7f3ea", "#ded5c3", "#2b2113", "#4d4335",
+                                 "#6f6553", "#9c9382", "#b4530a", "#3c6e47")},
+        {"Forest green", makeTheme("#0f1712", "#26372c", "#eaf5ec", "#a9bdae",
+                                   "#87998c", "#4d5c52", "#5fd18c", "#a3e635")},
+        {"Deep plum", makeTheme("#160f1c", "#372a44", "#f1e9f7", "#bcaecb",
+                                "#9686a8", "#5c4d70", "#d18fff", "#ff8fd1")},
+        {"Slate mono", makeTheme("#15181d", "#2c313a", "#eceff3", "#a3aab6",
+                                 "#7d8593", "#454b56", "#8fa3c8", "#c8b98f")},
+        {"Nordic ice", makeTheme("#e5e9f0", "#c7ceda", "#2e3440", "#4c566a",
+                                 "#5e6a82", "#8c95a8", "#5e81ac", "#88c0d0")},
+        {"Solar amber", makeTheme("#1c1810", "#3a3220", "#f7ecd0", "#c9b98f",
+                                  "#a3936a", "#6b5f42", "#f5a623", "#e05e3e")},
+        {"Rose gold", makeTheme("#fdf5f3", "#eaddda", "#3a1f22", "#6b4a4d",
+                                "#8f6d6f", "#b89a9c", "#c2185b", "#b06a35")},
     };
     return kPresets;
 }
@@ -374,13 +329,13 @@ bool fromJson(const std::string& text, CV& cv, std::string& error) {
     return true;
 }
 
-bool load(const std::wstring& path, CV& cv, std::string& error) {
+bool load(const Path& path, CV& cv, std::string& error) {
     std::string text;
     if (!readFile(path, text, error)) return false;
     return fromJson(text, cv, error);
 }
 
-bool save(const std::wstring& path, const CV& cv, std::string& error) {
+bool save(const Path& path, const CV& cv, std::string& error) {
     return writeFile(path, toJson(cv), error);
 }
 

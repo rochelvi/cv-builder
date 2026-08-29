@@ -6,6 +6,7 @@
 # it without a window and lets the same object code serve every front end.
 add_library(resume_core STATIC
             numeric.cpp
+            file.cpp
             json.cpp
             model.cpp
             font.cpp

@@ -3,10 +3,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <cwchar>  // _wfopen: Unicode paths
 #include <map>
 #include <set>
 
+#include "file.h"
 #include "numeric.h"
 
 namespace cvb {
@@ -377,16 +377,10 @@ std::vector<uint8_t> buildPdf(const Document& doc, const FontSet& fonts, std::st
     return out;
 }
 
-bool writePdf(const Document& doc, const FontSet& fonts, const std::wstring& path,
-              std::string& error) {
+bool writePdf(const Document& doc, const FontSet& fonts, const Path& path, std::string& error) {
     std::vector<uint8_t> data = buildPdf(doc, fonts, error);
     if (data.empty()) return false;
-    FILE* fh = _wfopen(path.c_str(), L"wb");
-    if (!fh) { error = "не удалось создать файл"; return false; }
-    bool ok = std::fwrite(data.data(), 1, data.size(), fh) == data.size();
-    if (std::fclose(fh) != 0) ok = false;
-    if (!ok) error = "ошибка записи файла";
-    return ok;
+    return writeFile(path, data.data(), data.size(), error);
 }
 
 }  // namespace cvb

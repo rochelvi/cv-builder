@@ -14,6 +14,7 @@
 #include <unordered_map>
 
 #include "ui.h"
+#include "uitext.h"
 
 namespace cvb {
 
@@ -342,10 +343,8 @@ void SectionListEditor::create(FormHost& host) { host_ = &host; }
 void SectionListEditor::addRow(const SectionRef& ref) {
     Row row;
     row.id = ref.id;
-    const wchar_t* name = L"";
-    for (int i = 0; i < kSectionCount; ++i)
-        if (ref.id == kSectionIds[i]) name = kSectionEditorNames[i];
-    row.enabled = makeCheck(*host_, name);
+    const std::wstring name = widen(uitext::sectionName(ref.id));
+    row.enabled = makeCheck(*host_, name.c_str());
     Button_SetCheck(row.enabled, ref.enabled ? BST_CHECKED : BST_UNCHECKED);
     row.label = makeEdit(*host_, L"Заголовок на странице");
     writeText(row.label, ref.label);
@@ -1232,13 +1231,13 @@ bool FormPane::create(HWND parent, HINSTANCE instance, std::function<void()> onC
     SendMessageW(impl.preset, WM_SETFONT, reinterpret_cast<WPARAM>(impl.regular), TRUE);
     applyThemeToControl(impl.preset);
     for (const Preset& item : presets())
-        ComboBox_AddString(impl.preset, item.name);
+        ComboBox_AddString(impl.preset, widen(item.name).c_str());
 
     Theme defaults;
     for (int i = 0; i < TR_Count; ++i) {
         impl.colors[i] = defaults.c[i];
         impl.swatch[i] = makeButton(impl, L"", BS_OWNERDRAW);
-        impl.swatchLabel[i] = makeLabel(impl, kThemeLabels[i], false);
+        impl.swatchLabel[i] = makeLabel(impl, widen(uitext::kThemeRoles[i]).c_str(), false);
     }
 
     impl.name = makeEdit(impl, L"Полное имя");

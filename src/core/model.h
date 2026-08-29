@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "file.h"
+
 namespace cvb {
 
 // Every colour the renderer can use. Kept as an indexed array so the colour
@@ -24,8 +26,7 @@ enum ThemeRole {
     TR_Count
 };
 
-extern const char* const kThemeKeys[TR_Count];       // JSON keys
-extern const wchar_t* const kThemeLabels[TR_Count];  // labels in the editor
+extern const char* const kThemeKeys[TR_Count];  // JSON keys
 
 struct Theme {
     std::string c[TR_Count];
@@ -33,8 +34,10 @@ struct Theme {
     bool operator==(const Theme& other) const;
 };
 
+// The name is UTF-8: the palette is model data, and which of the front ends
+// shows it - and in what string type - is not the model's business.
 struct Preset {
-    const wchar_t* name;
+    const char* name;
     Theme theme;
 };
 const std::vector<Preset>& presets();
@@ -78,7 +81,6 @@ struct SectionRef {
 // the running order is edited.
 constexpr int kSectionCount = 8;
 extern const char* const kSectionIds[kSectionCount];
-extern const wchar_t* const kSectionEditorNames[kSectionCount];  // labels in the editor
 
 // The English heading a section starts with; `id` unknown yields an empty
 // string, which the renderer treats as "no heading of its own".
@@ -120,9 +122,10 @@ std::vector<SectionRef> orderedSections(const CV& cv);
 std::string toJson(const CV& cv);
 bool fromJson(const std::string& text, CV& cv, std::string& error);
 
-// Both take UTF-16 paths and read/write UTF-8 without a BOM.
-bool load(const std::wstring& path, CV& cv, std::string& error);
-bool save(const std::wstring& path, const CV& cv, std::string& error);
+// UTF-8 on disk, no BOM, on every platform - a file written on one opens on the
+// others unchanged.
+bool load(const Path& path, CV& cv, std::string& error);
+bool save(const Path& path, const CV& cv, std::string& error);
 
 // A blank CV with the placeholder header the "New" command starts from.
 CV emptyCV();

@@ -7,9 +7,9 @@
 #include <shellapi.h>
 
 #include <cstdio>
-#include <cwchar>  // _wfopen: Unicode paths
 #include <string>
 
+#include "file.h"
 #include "font.h"
 #include "layout.h"
 #include "model.h"
@@ -40,33 +40,39 @@ std::string escape(const std::string& s) {
 // against the original renderer. Coordinates go through numfmt for the same
 // reason the PDF writer does: a comma here would make the dump unparseable in
 // half of Europe.
-bool dumpOps(const cvb::Document& doc, const std::wstring& path) {
-    FILE* fh = _wfopen(path.c_str(), L"wb");
-    if (!fh) return false;
+bool dumpOps(const cvb::Document& doc, const cvb::Path& path) {
     auto f3 = [](double v) { return numfmt::fixed(v, 3); };
-    std::fprintf(fh, "[\n");
+    char buf[512];
+    std::string out = "[\n";
     bool first = true;
     for (size_t p = 0; p < doc.pages.size(); ++p) {
         const cvb::Page& page = doc.pages[p];
         for (const cvb::LineItem& line : page.lines) {
-            std::fprintf(fh, "%s {\"op\":\"rule\",\"page\":%zu,\"y\":%s,\"w\":%s}",
-                         first ? "" : ",\n", p, f3(line.y1).c_str(), f3(line.width).c_str());
+            std::snprintf(buf, sizeof buf, "%s {\"op\":\"rule\",\"page\":%zu,\"y\":%s,\"w\":%s}",
+                          first ? "" : ",\n", p, f3(line.y1).c_str(), f3(line.width).c_str());
+            out += buf;
             first = false;
         }
         for (const cvb::TextItem& item : page.texts) {
-            std::fprintf(fh,
-                         "%s {\"op\":\"text\",\"page\":%zu,\"x\":%s,\"y\":%s,\"size\":%s,"
-                         "\"bold\":%s,\"color\":\"%02x%02x%02x\",\"s\":\"%s\"}",
-                         first ? "" : ",\n", p, f3(item.x).c_str(), f3(item.y).c_str(),
-                         numfmt::shortest(item.size).c_str(),
-                         item.bold ? "true" : "false", item.color.r, item.color.g, item.color.b,
-                         escape(item.text).c_str());
+            std::snprintf(buf, sizeof buf,
+                          "%s {\"op\":\"text\",\"page\":%zu,\"x\":%s,\"y\":%s,\"size\":%s,"
+                          "\"bold\":%s,\"color\":\"%02x%02x%02x\",\"s\":",
+                          first ? "" : ",\n", p, f3(item.x).c_str(), f3(item.y).c_str(),
+                          numfmt::shortest(item.size).c_str(),
+                          item.bold ? "true" : "false", item.color.r, item.color.g, item.color.b);
+            // The text goes on separately: a bullet list runs well past any
+            // fixed buffer, and truncating the dump would make it lie.
+            out += buf;
+            out += '"';
+            out += escape(item.text);
+            out += "\"}";
             first = false;
         }
     }
-    std::fprintf(fh, "\n]\n");
-    std::fclose(fh);
-    return true;
+    out += "\n]\n";
+
+    std::string error;
+    return cvb::writeFile(path, out, error);
 }
 
 }  // namespace

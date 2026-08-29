@@ -3,9 +3,9 @@
 #include <windows.h>
 
 #include <algorithm>
-#include <cstdio>
 #include <cstring>
-#include <cwchar>  // _wfopen: Unicode paths
+
+#include "file.h"
 
 namespace cvb {
 namespace {
@@ -78,22 +78,6 @@ uint32_t nextCodePoint(const std::string& s, size_t& i) {
     return 0xFFFD;
 }
 
-bool readWholeFile(const std::wstring& path, std::vector<uint8_t>& out) {
-    FILE* fh = _wfopen(path.c_str(), L"rb");
-    if (!fh) return false;
-    std::fseek(fh, 0, SEEK_END);
-    long size = std::ftell(fh);
-    std::fseek(fh, 0, SEEK_SET);
-    bool ok = size > 0;
-    if (ok) {
-        out.resize(static_cast<size_t>(size));
-        ok = std::fread(out.data(), 1, out.size(), fh) == out.size();
-    }
-    std::fclose(fh);
-    if (!ok) out.clear();
-    return ok;
-}
-
 }  // namespace
 
 // ---------------------------------------------------------------- loading
@@ -103,14 +87,18 @@ const Font::Table* Font::table(const char* tag) const {
     return it == tables_.end() ? nullptr : &it->second;
 }
 
-bool Font::loadFromFile(const std::wstring& path, std::string& error) {
+bool Font::loadFromFile(const Path& path, std::string& error) {
     data_.clear();
     tables_.clear();
     cmap_.clear();
     advances_.clear();
     loca_.clear();
 
-    if (!readWholeFile(path, data_)) { error = "не удалось прочитать файл шрифта"; return false; }
+    std::string why;
+    if (!readFile(path, data_, why)) {
+        error = "не удалось прочитать файл шрифта";
+        return false;
+    }
     if (data_.size() < 12) { error = "файл шрифта слишком мал"; return false; }
 
     uint32_t version = be32(data_.data());
@@ -444,7 +432,7 @@ std::vector<uint8_t> Font::subset(const std::vector<uint16_t>& glyphs) const {
 bool FontSet::loadSystem(std::string& error) {
     wchar_t windir[MAX_PATH] = {0};
     UINT n = GetWindowsDirectoryW(windir, MAX_PATH);
-    std::wstring fonts = (n ? std::wstring(windir, n) : std::wstring(L"C:\\Windows")) + L"\\Fonts\\";
+    const Path fonts = Path(n ? std::wstring(windir, n) : std::wstring(L"C:\\Windows")) / L"Fonts";
 
     // Arial first: it is metrically identical to the template's Helvetica, so
     // line breaks land exactly where the original design put them.
@@ -460,8 +448,8 @@ bool FontSet::loadSystem(std::string& error) {
     std::string last = "шрифты не найдены";
     for (const auto& entry : candidates) {
         Font regular, bold;
-        if (!regular.loadFromFile(fonts + entry[0], last)) continue;
-        if (!bold.loadFromFile(fonts + entry[1], last)) continue;
+        if (!regular.loadFromFile(fonts / entry[0], last)) continue;
+        if (!bold.loadFromFile(fonts / entry[1], last)) continue;
         regular_ = std::move(regular);
         bold_ = std::move(bold);
         family_ = entry[2];

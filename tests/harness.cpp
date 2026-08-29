@@ -42,7 +42,7 @@ int run(int argc, char** argv) {
 
         gFailures = 0;
         gSkip.clear();
-        std::printf("%-40s", item.name.c_str());
+        std::printf("%-44s", item.name.c_str());
         std::fflush(stdout);
         item.run();
 

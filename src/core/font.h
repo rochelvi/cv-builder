@@ -12,14 +12,18 @@
 #include <unordered_map>
 #include <vector>
 
+#include "file.h"
+
 namespace cvb {
 
 class Font {
 public:
-    bool loadFromFile(const std::wstring& path, std::string& error);
+    bool loadFromFile(const Path& path, std::string& error);
     bool valid() const { return !data_.empty(); }
 
-    const std::wstring& path() const { return path_; }
+    // Where the face came from. A screen backend hands this to the system text
+    // engine so it rasterises the very file the metrics were measured from.
+    const Path& path() const { return path_; }
 
     // Glyph id for a code point, 0 (.notdef) when the font has no such glyph.
     uint16_t glyphFor(uint32_t codePoint) const;
@@ -63,7 +67,7 @@ private:
     void parseCmap12(uint32_t offset);
     void collectComponents(uint16_t glyph, std::vector<bool>& used, int depth) const;
 
-    std::wstring path_;
+    Path path_;
     std::vector<uint8_t> data_;
     std::unordered_map<uint32_t, Table> tables_;
     std::unordered_map<uint32_t, uint16_t> cmap_;

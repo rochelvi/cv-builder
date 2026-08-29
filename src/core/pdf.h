@@ -17,7 +17,6 @@ namespace cvb {
 // The finished PDF bytes. Empty on failure, with `error` set.
 std::vector<uint8_t> buildPdf(const Document& doc, const FontSet& fonts, std::string& error);
 
-bool writePdf(const Document& doc, const FontSet& fonts, const std::wstring& path,
-              std::string& error);
+bool writePdf(const Document& doc, const FontSet& fonts, const Path& path, std::string& error);
 
 }  // namespace cvb
