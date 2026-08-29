@@ -51,5 +51,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 # Only meaningful on Windows; kept as an option so the cross-platform front end
 # can be built there too without dragging the Win32 one along.
 option(CVB_BUILD_WIN32_UI "Build the original Win32/Direct2D front end" ${WIN32})
+option(CVB_BUILD_TESTS "Build the core test suite" ON)
 
 add_subdirectory(src)
+
+if(CVB_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

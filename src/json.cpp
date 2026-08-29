@@ -1,8 +1,8 @@
 #include "json.h"
 
-#include <cmath>
 #include <cstdio>
-#include <cstdlib>
+
+#include "numeric.h"
 
 namespace js {
 namespace {
@@ -206,7 +206,9 @@ private:
             while (i_ < s_.size() && s_[i_] >= '0' && s_[i_] <= '9') ++i_;
         }
         if (!digits) return fail("expected value");
-        out = Value(std::strtod(s_.substr(start, i_ - start).c_str(), nullptr));
+        double value = 0.0;
+        if (!numfmt::parse(s_.substr(start, i_ - start), value)) return fail("bad number");
+        out = Value(value);
         return true;
     }
 
@@ -239,14 +241,7 @@ void escape(const std::string& in, std::string& out) {
     out += '"';
 }
 
-void writeNumber(double v, std::string& out) {
-    char buf[40];
-    if (v == std::floor(v) && std::fabs(v) < 1e15)
-        std::snprintf(buf, sizeof buf, "%lld", static_cast<long long>(v));
-    else
-        std::snprintf(buf, sizeof buf, "%.10g", v);
-    out += buf;
-}
+void writeNumber(double v, std::string& out) { out += numfmt::shortest(v); }
 
 void write(const Value& v, int indent, int level, std::string& out) {
     const std::string pad = indent > 0 ? std::string(static_cast<size_t>(indent * (level + 1)), ' ') : std::string();

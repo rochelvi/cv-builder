@@ -7,14 +7,17 @@
 #include <map>
 #include <set>
 
+#include "numeric.h"
+
 namespace cvb {
 namespace {
 
+// Three decimals, trailing zeros trimmed. Goes through numfmt::fixed rather than
+// snprintf: a PDF written with the locale's comma in its coordinates is not a
+// PDF any reader will open.
 std::string num(double v) {
     if (std::fabs(v) < 5e-4) return "0";
-    char buf[40];
-    std::snprintf(buf, sizeof buf, "%.3f", v);
-    std::string s = buf;
+    std::string s = numfmt::fixed(v, 3);
     size_t dot = s.find('.');
     if (dot != std::string::npos) {
         size_t last = s.find_last_not_of('0');

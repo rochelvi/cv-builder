@@ -13,6 +13,7 @@
 #include "font.h"
 #include "layout.h"
 #include "model.h"
+#include "numeric.h"
 #include "pdf.h"
 #include "version.h"
 
@@ -36,24 +37,28 @@ std::string escape(const std::string& s) {
 }
 
 // A flat JSON list of every draw call, so the layout can be diffed line by line
-// against the original renderer.
+// against the original renderer. Coordinates go through numfmt for the same
+// reason the PDF writer does: a comma here would make the dump unparseable in
+// half of Europe.
 bool dumpOps(const cvb::Document& doc, const std::wstring& path) {
     FILE* fh = _wfopen(path.c_str(), L"wb");
     if (!fh) return false;
+    auto f3 = [](double v) { return numfmt::fixed(v, 3); };
     std::fprintf(fh, "[\n");
     bool first = true;
     for (size_t p = 0; p < doc.pages.size(); ++p) {
         const cvb::Page& page = doc.pages[p];
         for (const cvb::LineItem& line : page.lines) {
-            std::fprintf(fh, "%s {\"op\":\"rule\",\"page\":%zu,\"y\":%.3f,\"w\":%.3f}",
-                         first ? "" : ",\n", p, line.y1, line.width);
+            std::fprintf(fh, "%s {\"op\":\"rule\",\"page\":%zu,\"y\":%s,\"w\":%s}",
+                         first ? "" : ",\n", p, f3(line.y1).c_str(), f3(line.width).c_str());
             first = false;
         }
         for (const cvb::TextItem& item : page.texts) {
             std::fprintf(fh,
-                         "%s {\"op\":\"text\",\"page\":%zu,\"x\":%.3f,\"y\":%.3f,\"size\":%g,"
+                         "%s {\"op\":\"text\",\"page\":%zu,\"x\":%s,\"y\":%s,\"size\":%s,"
                          "\"bold\":%s,\"color\":\"%02x%02x%02x\",\"s\":\"%s\"}",
-                         first ? "" : ",\n", p, item.x, item.y, item.size,
+                         first ? "" : ",\n", p, f3(item.x).c_str(), f3(item.y).c_str(),
+                         numfmt::shortest(item.size).c_str(),
                          item.bold ? "true" : "false", item.color.r, item.color.g, item.color.b,
                          escape(item.text).c_str());
             first = false;

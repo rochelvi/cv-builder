@@ -35,6 +35,7 @@ target_include_directories(resume_version INTERFACE "${PROJECT_SOURCE_DIR}/res")
 # the PDF writer. This is the part that has to stay free of any operating
 # system, and the one the tests can exercise without a window.
 add_library(resume_core STATIC
+            numeric.cpp
             json.cpp
             model.cpp
             font.cpp
