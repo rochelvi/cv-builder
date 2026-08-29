@@ -15,7 +15,7 @@ target_include_directories(resume_ui_win32 PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 # PUBLIC: a static library does not link, so the executable that consumes it is
 # the one that needs these.
 target_link_libraries(resume_ui_win32 PUBLIC
-                      resume_core resume_render resume_app resume_uitext
+                      resume_core resume_render resume_app resume_uicommon
                       comctl32 comdlg32 d2d1 dwrite dwmapi uxtheme
                       gdi32 user32 shlwapi advapi32 ole32 uuid shell32)
 

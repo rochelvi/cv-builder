@@ -32,13 +32,7 @@ target_include_directories(resume_version INTERFACE "${PROJECT_SOURCE_DIR}/res")
 
 add_subdirectory(core)
 
-# The editor's words for the model's concepts, in UTF-8. Its own target because
-# both front ends need them and neither owns them; deliberately not part of
-# resume_core, which has no business holding interface text.
-add_library(resume_uitext STATIC uitext.cpp)
-target_include_directories(resume_uitext PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(resume_uitext PUBLIC resume_core)
-
+add_subdirectory(uicommon)
 add_subdirectory(render)
 add_subdirectory(platform)
 add_subdirectory(app)
@@ -46,4 +40,8 @@ add_subdirectory(cli)
 
 if(CVB_BUILD_WIN32_UI)
     add_subdirectory(ui_win32)
+endif()
+
+if(CVB_BUILD_QT_UI)
+    add_subdirectory(ui_qt)
 endif()

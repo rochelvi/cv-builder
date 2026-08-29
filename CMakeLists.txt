@@ -63,7 +63,20 @@ endfunction()
 # Only meaningful on Windows; kept as an option so the cross-platform front end
 # can be built there too without dragging the Win32 one along.
 option(CVB_BUILD_WIN32_UI "Build the original Win32/Direct2D front end" ${WIN32})
+option(CVB_BUILD_QT_UI "Build the portable Qt front end" ON)
 option(CVB_BUILD_TESTS "Build the core test suite" ON)
+
+if(CVB_BUILD_QT_UI)
+    # Only these four. No QML, no Network, no WebEngine - a resume editor needs a
+    # window, a painter and a printer.
+    find_package(Qt6 6.5 QUIET COMPONENTS Core Gui Widgets PrintSupport)
+    if(NOT Qt6_FOUND)
+        message(STATUS "Qt 6 not found: building without the portable front end. "
+                       "Point CMAKE_PREFIX_PATH at a Qt installation, or install "
+                       "qt6-base-dev, to build it.")
+        set(CVB_BUILD_QT_UI OFF)
+    endif()
+endif()
 
 add_subdirectory(src)
 

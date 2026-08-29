@@ -42,7 +42,10 @@
       "inherits": "base",
       "displayName": "Windows, cross-compiled with mingw-w64",
       "generator": "Unix Makefiles",
-      "toolchainFile": "${sourceDir}/cmake/toolchains/mingw-w64-x86_64.cmake"
+      "toolchainFile": "${sourceDir}/cmake/toolchains/mingw-w64-x86_64.cmake",
+      "cacheVariables": {
+        "CVB_BUILD_QT_UI": "OFF"
+      }
     },
     {
       "name": "windows-msvc",

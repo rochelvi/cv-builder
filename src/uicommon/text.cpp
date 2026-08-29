@@ -1,7 +1,7 @@
-#include "uitext.h"
+#include "text.h"
 
 namespace cvb {
-namespace uitext {
+namespace uicommon {
 
 const char* const kThemeRoles[TR_Count] = {
     "Фон страницы",
@@ -31,5 +31,5 @@ const char* sectionName(const std::string& id) {
     return "";
 }
 
-}  // namespace uitext
+}  // namespace uicommon
 }  // namespace cvb

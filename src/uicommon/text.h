@@ -12,7 +12,7 @@
 #include "model.h"
 
 namespace cvb {
-namespace uitext {
+namespace uicommon {
 
 // Parallel to ThemeRole and to kSectionIds.
 extern const char* const kThemeRoles[TR_Count];
@@ -21,5 +21,5 @@ extern const char* const kSectionNames[kSectionCount];
 // The editor's name for a section id; empty for an id this build does not know.
 const char* sectionName(const std::string& id);
 
-}  // namespace uitext
+}  // namespace uicommon
 }  // namespace cvb

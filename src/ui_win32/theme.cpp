@@ -14,6 +14,7 @@
 #include <cwchar>
 #include <iterator>
 
+#include "palette.h"
 #include "settings.h"
 #include "ui.h"
 
@@ -28,30 +29,29 @@ namespace {
 // left working on the builds that shipped with it.
 constexpr DWORD kImmersiveDarkModeLegacy = 19;
 
-// Stored through the platform settings layer, which on Windows is the same
-// registry key and the same value name it has always been.
-constexpr char kThemeModeSetting[] = "ThemeMode";
-
 constexpr wchar_t kPersonalizeKey[] =
     L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 
-UiTheme darkPalette() {
+// The colours themselves live in uicommon, shared with the portable front end:
+// the two are meant to be the same program, so neither may own the palette.
+UiTheme fromShared(const uicommon::Palette& palette) {
+    auto gdi = [](const cvb::RGB& c) { return RGB(c.r, c.g, c.b); };
     UiTheme t;
-    t.window = RGB(0x20, 0x20, 0x20);
-    t.pane = RGB(0x1B, 0x1B, 0x1B);
-    t.card = RGB(0x2A, 0x2B, 0x2E);
-    t.cardEdge = RGB(0x3D, 0x3F, 0x44);
-    t.field = RGB(0x2D, 0x2E, 0x31);
-    t.text = RGB(0xE6, 0xE8, 0xEA);
-    t.subtext = RGB(0x9A, 0xA1, 0xAC);
-    t.accent = RGB(0x4C, 0x9B, 0xF5);
-    t.previewBack = RGB(0x2A, 0x2C, 0x2F);
-    t.dark = true;
+    t.window = gdi(palette.window);
+    t.pane = gdi(palette.pane);
+    t.card = gdi(palette.card);
+    t.cardEdge = gdi(palette.cardEdge);
+    t.field = gdi(palette.field);
+    t.text = gdi(palette.text);
+    t.subtext = gdi(palette.subtext);
+    t.accent = gdi(palette.accent);
+    t.previewBack = gdi(palette.previewBack);
+    t.dark = palette.dark;
     return t;
 }
 
-const UiTheme kLight;
-const UiTheme kDark = darkPalette();
+const UiTheme kLight = fromShared(uicommon::lightPalette());
+const UiTheme kDark = fromShared(uicommon::darkPalette());
 
 UiTheme gTheme = kLight;
 ThemeMode gMode = ThemeMode::System;
@@ -155,7 +155,7 @@ void initTheme() {
         if (gSetPreferredAppMode) gSetPreferredAppMode(PAM_AllowDark);
     }
 
-    const int saved = platform::settings::readInt(kThemeModeSetting,
+    const int saved = platform::settings::readInt(uicommon::kModeSetting,
                                                   static_cast<int>(ThemeMode::System));
     gMode = (saved >= 0 && saved <= static_cast<int>(ThemeMode::Dark))
                 ? static_cast<ThemeMode>(saved)
@@ -166,7 +166,7 @@ void initTheme() {
 void setThemeMode(ThemeMode mode) {
     gMode = mode;
     recompute();
-    platform::settings::writeInt(kThemeModeSetting, static_cast<int>(mode));
+    platform::settings::writeInt(uicommon::kModeSetting, static_cast<int>(mode));
 }
 
 void refreshTheme() { recompute(); }
@@ -187,3 +187,4 @@ void applyThemeToWindow(HWND window) {
 }
 
 }  // namespace cvb
+

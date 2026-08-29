@@ -16,3 +16,7 @@ target_link_libraries(resume_tests PRIVATE resume_core resume_render resume_app)
 cvb_stage_assets(resume_tests)
 
 add_test(NAME core COMMAND resume_tests)
+
+if(CVB_BUILD_QT_UI)
+    add_subdirectory(qt)
+endif()

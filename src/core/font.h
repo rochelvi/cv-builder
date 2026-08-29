@@ -37,6 +37,10 @@ public:
     const Path& path() const { return path_; }
     int faceIndex() const { return faceIndex_; }
 
+    // The bytes the face was parsed from, for a backend that has to hand the same
+    // file to a system text engine and would rather not read it again.
+    const std::vector<uint8_t>& fileData() const { return data_; }
+
     // Glyph id for a code point, 0 (.notdef) when the font has no such glyph.
     uint16_t glyphFor(uint32_t codePoint) const;
 
