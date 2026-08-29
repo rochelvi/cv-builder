@@ -5,8 +5,11 @@ add_executable(resume_tests
                harness.cpp
                test_numeric.cpp
                test_file.cpp
-               test_font.cpp)
-target_link_libraries(resume_tests PRIVATE resume_core resume_app)
+               test_font.cpp
+               test_model.cpp
+               test_layout.cpp
+               test_pdf.cpp)
+target_link_libraries(resume_tests PRIVATE resume_core resume_render resume_app)
 
 # The font cases load the bundled face the way the program does - from beside the
 # executable - so the assets have to be there.
