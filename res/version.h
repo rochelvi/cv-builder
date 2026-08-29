@@ -15,7 +15,7 @@
 // on a machine with no network and no access to the repository, which a tag
 // on GitHub cannot do. Bump it for any release that changes a binary.
 #define VER_MAJOR 1
-#define VER_MINOR 2
+#define VER_MINOR 3
 #define VER_PATCH 0
 
 // Windows compares a four-part number when it decides which of two files is
