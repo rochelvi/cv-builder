@@ -1,39 +1,58 @@
-# Builds CVBuilder.exe by cross-compiling with mingw-w64 inside WSL.
+# Builds the Windows executables by cross-compiling with mingw-w64 inside WSL.
 #
 # One-off setup in the WSL distro:
-#   sudo apt install -y g++-mingw-w64-x86-64 make
+#   sudo apt install -y g++-mingw-w64-x86-64 cmake make
 #
-# Pass -Distro to build in a distro other than Ubuntu, -Clean to rebuild from
-# scratch, -Installer to also compile installer\setup.iss into a setup .exe
-# (needs Inno Setup 6: winget install JRSoftware.InnoSetup).
+# Pass -Distro to build in a distro other than Ubuntu, -Clean to configure from
+# scratch, -SkipTests to skip the core test suite, -Installer to also compile
+# installer\setup.iss into a setup .exe (needs Inno Setup 6:
+# winget install JRSoftware.InnoSetup).
 param(
     [string]$Distro = "Ubuntu",
     [switch]$Clean,
+    [switch]$SkipTests,
     [switch]$Installer
 )
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
+$preset = "windows-mingw"
+$binDir = "build\$preset\bin"
+
 # WSL sees the project through /mnt/<drive>, so translate the Windows path.
 $drive = $PSScriptRoot.Substring(0, 1).ToLower()
 $rest = $PSScriptRoot.Substring(2).Replace("\", "/")
 $wslPath = "/mnt/$drive$rest"
 
-# `make -j clean all` is a race: the two goals are independent, so a parallel
-# make happily wipes the object files while it is still linking them. Clean
-# first, on its own, then build.
-$recipe = if ($Clean) { "make clean && make -j`$(nproc) all" } else { "make -j`$(nproc) all" }
+if ($Clean -and (Test-Path "build\$preset")) {
+    Remove-Item -Recurse -Force "build\$preset"
+}
+
+# cmake may be an apt package on PATH or a tarball unpacked into ~/.local; take
+# whichever is there rather than insisting on one.
+$findCmake = 'CMAKE=$(command -v cmake || echo $HOME/.local/bin/cmake); ' +
+             'test -x "$CMAKE" || { echo "cmake not found: sudo apt install -y cmake" >&2; exit 1; }'
+
 Write-Host "Сборка в WSL ($Distro): $wslPath"
-wsl -d $Distro -- bash -lc "cd '$wslPath' && $recipe"
+wsl -d $Distro -- bash -c "$findCmake; cd '$wslPath' && `$CMAKE --preset $preset && `$CMAKE --build build/$preset -j`$(nproc)"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Сборка не удалась." -ForegroundColor Red
     exit $LASTEXITCODE
-} 
+}
 
-Copy-Item sample_cv.json build\ -Force
+# The test suite is a Windows executable, so it runs here rather than in WSL.
+if (-not $SkipTests) {
+    Write-Host ""
+    & "$binDir\resume_tests.exe"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Тесты не прошли." -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
+}
+
 Write-Host ""
-Write-Host "Готово: build\CVBuilder.exe" -ForegroundColor Green
+Write-Host "Готово: $binDir\CVBuilder.exe" -ForegroundColor Green
 
 if (-not $Installer) { return }
 
@@ -60,13 +79,13 @@ if (-not $iscc) {
     ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 }
 if (-not $iscc) {
-    Write-Host "Inno Setup не найден. Поставить: winget install JRSoftware.InnoSetup" -ForegroundColor Red
+    Write-Host "Inno Setup не найден. Установите: winget install JRSoftware.InnoSetup" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
 Write-Host "Сборка установщика: $iscc"
-& $iscc /Q installer\setup.iss
+& $iscc /Q "/DBinDir=..\$binDir" installer\setup.iss
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Установщик собрать не удалось." -ForegroundColor Red
     exit $LASTEXITCODE

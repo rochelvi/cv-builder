@@ -12,12 +12,18 @@
 ; shortcuts where the user asked for them, and registering an uninstaller.
 
 #define AppName "CV Builder"
+; Where the built executables are. CMake puts them under the preset's own
+; directory; build.ps1 passes the one it used, and the default is the preset a
+; hand-run build would have produced.
+#ifndef BinDir
+  #define BinDir "..\build\windows-mingw\bin"
+#endif
 ; Read straight out of the executable that was just built, whose version
 ; comes from res\version.h - so the version lives in exactly one file.
 ; This means the .exe has to exist before ISCC runs; build.ps1 -Installer
 ; builds first, and compiling this script on its own without a build will
 ; stop here with a clear error rather than shipping a stale number.
-#define AppVersion GetStringFileInfo("..\build\CVBuilder.exe", "ProductVersion")
+#define AppVersion GetStringFileInfo(BinDir + "\CVBuilder.exe", "ProductVersion")
 #define AppPublisher "Daniil Mishin"
 #define AppUrl "https://github.com/rochelvi/cv-builder"
 #define AppExe "CVBuilder.exe"
@@ -73,8 +79,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; \
     GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\build\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\build\cvcli.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BinDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BinDir}\cvcli.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; Read at startup as a starting point; the app never writes back to it, and
 ; "Save" on an untitled CV always opens a file dialog, so living under
 ; Program Files is fine.
