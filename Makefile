@@ -36,7 +36,7 @@ GUI_LIBS := -lcomctl32 -lcomdlg32 -ld2d1 -ldwrite -ldwmapi -luxtheme -lgdi32 -lu
             -ladvapi32
 
 CORE_SRC := src/json.cpp src/model.cpp src/font.cpp src/layout.cpp src/pdf.cpp
-GUI_SRC  := src/app.cpp src/form.cpp src/preview.cpp src/theme.cpp
+GUI_SRC  := src/app.cpp src/form.cpp src/preview.cpp src/theme.cpp src/settings.cpp src/print.cpp
 CLI_SRC  := src/cli.cpp
 
 CORE_OBJ := $(CORE_SRC:%.cpp=$(BUILD)/%.o)

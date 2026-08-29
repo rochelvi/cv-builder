@@ -43,6 +43,48 @@ struct UiTheme {
 };
 const UiTheme& ui();
 
+// ------------------------------------------------------ remembered settings
+// Everything the app keeps between runs lives under one registry key, defined
+// once in theme.cpp and shared with settings.cpp.
+extern const wchar_t kSettingsKey[];
+
+// The folder under %LOCALAPPDATA% that holds the recovery snapshot.
+extern const wchar_t kAppFolderName[];
+
+// How many paths the "recently opened" list keeps.
+constexpr size_t kMaxRecentFiles = 8;
+
+// Most recent first. Paths that no longer exist are filtered out on the way
+// out, so the caller never offers a file that cannot be opened.
+std::vector<std::wstring> recentFiles();
+void pushRecentFile(const std::wstring& path);
+void clearRecentFiles();
+
+// ---------------------------------------------------------------- recovery
+// The crash snapshot: written periodically while there are unsaved changes,
+// removed as soon as the work is saved or the window closes cleanly.
+std::wstring autosavePath();
+void writeAutosave(const CV& cv, const std::wstring& origin);
+void clearAutosave();
+
+struct Recovery {
+    CV cv;
+    std::wstring origin;  // the file it belonged to, empty if never saved
+    FILETIME savedAt{};
+};
+
+// True when a snapshot was left behind and is newer than the file it came
+// from - that is, when the last run ended without saving. A stale snapshot is
+// deleted rather than offered.
+bool findRecovery(Recovery& out);
+
+// ------------------------------------------------------------------ print
+// Shows the print dialog and puts `doc` on the chosen device. Cancelling is
+// its own outcome: it is neither a failure to report nor a job to announce.
+enum class PrintResult { Printed, Cancelled, Failed };
+PrintResult printDocument(HWND owner, const Document& doc, const FontSet& fonts,
+                          const std::wstring& title, std::wstring& error);
+
 // Loads the remembered choice and lets uxtheme draw dark controls; call once
 // before the first window exists.
 void initTheme();

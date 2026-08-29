@@ -21,13 +21,17 @@
 #endif
 
 namespace cvb {
+// Shared with settings.cpp: one registry key holds everything the app
+// remembers between runs.
+const wchar_t kSettingsKey[] = L"Software\\CV Builder";
+const wchar_t kAppFolderName[] = L"CV Builder";
+
 namespace {
 
 // 1809 named the attribute 19; it moved to 20 in 20H1 and the old number was
 // left working on the builds that shipped with it.
 constexpr DWORD kImmersiveDarkModeLegacy = 19;
 
-constexpr wchar_t kSettingsKey[] = L"Software\\CV Builder";
 constexpr wchar_t kSettingsValue[] = L"ThemeMode";
 constexpr wchar_t kPersonalizeKey[] =
     L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";

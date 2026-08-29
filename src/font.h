@@ -89,9 +89,15 @@ public:
     const Font& bold() const { return bold_; }
     bool valid() const { return regular_.valid() && bold_.valid(); }
 
+    // The GDI family name of whichever candidate was loaded. The preview and
+    // the PDF writer work from the parsed file and never need this; the
+    // printer backend does, because GDI is asked for a face by name.
+    const std::wstring& family() const { return family_; }
+
 private:
     Font regular_;
     Font bold_;
+    std::wstring family_;
 };
 
 }  // namespace cvb

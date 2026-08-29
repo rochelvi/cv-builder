@@ -448,20 +448,23 @@ bool FontSet::loadSystem(std::string& error) {
 
     // Arial first: it is metrically identical to the template's Helvetica, so
     // line breaks land exactly where the original design put them.
-    const wchar_t* candidates[][2] = {
-        {L"arial.ttf", L"arialbd.ttf"},
-        {L"segoeui.ttf", L"segoeuib.ttf"},
-        {L"tahoma.ttf", L"tahomabd.ttf"},
-        {L"verdana.ttf", L"verdanab.ttf"},
-        {L"calibri.ttf", L"calibrib.ttf"},
+    // Third column is the GDI family name of the same face, for backends that
+    // go through the system rather than through the parsed file.
+    const wchar_t* candidates[][3] = {
+        {L"arial.ttf", L"arialbd.ttf", L"Arial"},
+        {L"segoeui.ttf", L"segoeuib.ttf", L"Segoe UI"},
+        {L"tahoma.ttf", L"tahomabd.ttf", L"Tahoma"},
+        {L"verdana.ttf", L"verdanab.ttf", L"Verdana"},
+        {L"calibri.ttf", L"calibrib.ttf", L"Calibri"},
     };
     std::string last = "шрифты не найдены";
-    for (const auto& pair : candidates) {
+    for (const auto& entry : candidates) {
         Font regular, bold;
-        if (!regular.loadFromFile(fonts + pair[0], last)) continue;
-        if (!bold.loadFromFile(fonts + pair[1], last)) continue;
+        if (!regular.loadFromFile(fonts + entry[0], last)) continue;
+        if (!bold.loadFromFile(fonts + entry[1], last)) continue;
         regular_ = std::move(regular);
         bold_ = std::move(bold);
+        family_ = entry[2];
         return true;
     }
     error = "не удалось загрузить системный шрифт (" + last + ")";
