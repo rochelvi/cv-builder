@@ -26,6 +26,23 @@ Windows-версия на Win32 не удалена и не заморожена
 Подробный разбор архитектуры и переноса — в
 [`CROSS_PLATFORM_ANALYSIS.md`](CROSS_PLATFORM_ANALYSIS.md).
 
+## Как это выглядит
+
+Переносимая версия, тёмная и светлая палитра — слева форма, справа страница A4:
+
+![Тёмная тема](docs/interface-dark.png)
+
+![Светлая тема](docs/interface-light.png)
+
+Снимки сделаны без дисплея, самой программой:
+
+```bash
+QT_QPA_PLATFORM=offscreen build/linux/bin/resume_qt_shot out.png dark [resume.json]
+```
+
+Это же удобно приложить к сообщению об ошибке: видно и интерфейс, и то, как
+программа разметила конкретное резюме.
+
 ## Возможности
 
 - Редактируются все секции шаблона: шапка и контакты, «о себе», опыт работы
@@ -280,6 +297,8 @@ cvcli --version
 | `sample_cv.json` | Пример резюме, подхватывается при старте |
 | `tools/fontprobe.sh`, `metricstable.sh` | Сравнение раскладки и метрик двух шрифтов |
 | `tools/smoke.sh`, `qtcheck.sh`, `qtsysroot.sh`, `qtshim.cmake` | Проверка Qt-сборки и запуска без дисплея |
+| `tools/run-qt-wslg.sh` | Запуск Qt-версии на рабочем столе Windows через WSLg |
+| `docs/interface-*.png` | Снимки интерфейса, сделаны `resume_qt_shot` |
 | `tools/macos-syntax-check.sh` | Синтаксическая проверка macOS-файлов не на Mac |
 | `CROSS_PLATFORM_ANALYSIS.md` | Аудит, архитектура и разбор переноса |
 
