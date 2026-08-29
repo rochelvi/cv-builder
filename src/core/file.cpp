@@ -50,6 +50,23 @@ bool readFile(const Path& path, std::vector<uint8_t>& out, std::string& error) {
     return readAll(in, out, error);
 }
 
+std::string toUtf8(const Path& path) {
+    // u8string() is std::string in C++17 and std::u8string from C++20; the
+    // iterator pair copies either into bytes without naming the type.
+    const auto encoded = path.u8string();
+    return std::string(encoded.begin(), encoded.end());
+}
+
+Path fromUtf8(const std::string& text) {
+#if defined(__cpp_char8_t)
+    return Path(std::u8string(text.begin(), text.end()));
+#else
+    // Deprecated in C++20, which is why the branch above exists, but it is the
+    // only correct spelling before it.
+    return std::filesystem::u8path(text);
+#endif
+}
+
 bool writeFile(const Path& path, const void* data, size_t size, std::string& error) {
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     if (!out) { error = kCannotCreate; return false; }

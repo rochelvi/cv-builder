@@ -39,6 +39,8 @@ add_library(resume_uitext STATIC uitext.cpp)
 target_include_directories(resume_uitext PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(resume_uitext PUBLIC resume_core)
 
+add_subdirectory(platform)
+add_subdirectory(app)
 add_subdirectory(cli)
 
 if(CVB_BUILD_WIN32_UI)

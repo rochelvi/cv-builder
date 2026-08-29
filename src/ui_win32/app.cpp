@@ -12,7 +12,10 @@
 #include <cwchar>
 #include <iterator>
 
+#include "paths.h"
 #include "pdf.h"
+#include "recent_files.h"
+#include "recovery.h"
 #include "ui.h"
 #include "version.h"
 
@@ -85,22 +88,6 @@ const ToolButton kFileButtons[] = {
     {IDM_PRINT, L"Печать…", kToolButtonWidth - 20},
 };
 
-std::wstring directoryOf(const std::wstring& path) {
-    size_t slash = path.find_last_of(L"\\/");
-    return slash == std::wstring::npos ? std::wstring() : path.substr(0, slash);
-}
-
-std::wstring fileNameOf(const std::wstring& path) {
-    size_t slash = path.find_last_of(L"\\/");
-    return slash == std::wstring::npos ? path : path.substr(slash + 1);
-}
-
-std::wstring exeDirectory() {
-    wchar_t buffer[MAX_PATH] = {};
-    DWORD n = GetModuleFileNameW(nullptr, buffer, MAX_PATH);
-    return directoryOf(std::wstring(buffer, n));
-}
-
 // "Daniil Mishin" -> "Daniil_Mishin", the default name for Save / Export.
 std::wstring suggestedName(const std::wstring& personName, const wchar_t* extension) {
     std::wstring base;
@@ -137,7 +124,7 @@ struct App {
     std::vector<std::string> redoStack;
     std::string baseline;  // the state the stacks were last reconciled with
 
-    std::wstring path;   // the .json currently being edited, empty if never saved
+    Path path;           // the .json currently being edited, empty if never saved
     std::wstring status; // the line drawn along the bottom edge
     bool dirty = false;
     UINT dpi = 96;
@@ -157,7 +144,7 @@ struct App {
 
     void actionNew();
     void actionOpen();
-    bool openPath(const std::wstring& file);  // shared by the dialog and drag-and-drop
+    bool openPath(const Path& file);  // shared by the dialog and drag-and-drop
     void actionDrop(HDROP drop);
     bool actionSave();
     bool actionSaveAs();
@@ -173,7 +160,7 @@ struct App {
     void updateHistoryButtons();
     void writeRecovery();
     bool confirmDiscard();
-    void loadCV(const CV& cv, const std::wstring& from);
+    void loadCV(const CV& cv, const Path& from);
 };
 
 App* appOf(HWND window) {
@@ -279,7 +266,7 @@ void App::applyTheme() {
 
 void App::updateTitle() {
     std::wstring title = kAppName;
-    if (!path.empty()) title += L" — " + fileNameOf(path);
+    if (!path.empty()) title += L" — " + path.filename().wstring();
     if (dirty) title += L" *";
     SetWindowTextW(hwnd, title.c_str());
 }
@@ -308,7 +295,7 @@ void App::scheduleRefresh() {
     SetTimer(hwnd, kSnapshotTimer, kSnapshotDelay, nullptr);
 }
 
-void App::loadCV(const CV& cv, const std::wstring& from) {
+void App::loadCV(const CV& cv, const Path& from) {
     form.setCV(cv);
     path = from;
     dirty = false;
@@ -330,7 +317,7 @@ bool App::confirmDiscard() {
 
 void App::actionNew() {
     if (!confirmDiscard()) return;
-    loadCV(emptyCV(), std::wstring());
+    loadCV(emptyCV(), Path());
     setStatus(L"Новое резюме");
 }
 
@@ -351,7 +338,7 @@ void App::actionOpen() {
 
 // Loads a path that came either from the Open dialog or from a dropped file.
 // Returns false and explains itself if the file is not a CV.
-bool App::openPath(const std::wstring& file) {
+bool App::openPath(const Path& file) {
     CV cv;
     std::string error;
     if (!load(file, cv, error)) {
@@ -360,8 +347,8 @@ bool App::openPath(const std::wstring& file) {
         return false;
     }
     loadCV(cv, file);
-    pushRecentFile(file);
-    setStatus(L"Открыто: " + file);
+    app::pushRecentFile(file);
+    setStatus(L"Открыто: " + file.wstring());
     return true;
 }
 
@@ -401,11 +388,11 @@ bool App::actionSave() {
     }
     dirty = false;
     updateTitle();
-    pushRecentFile(path);
+    app::pushRecentFile(path);
     // The work is on disk now, so the recovery snapshot has nothing left to
     // rescue and must not be offered on the next start.
-    clearAutosave();
-    setStatus(L"Сохранено: " + path);
+    app::clearAutosave();
+    setStatus(L"Сохранено: " + path.wstring());
     return true;
 }
 
@@ -424,7 +411,10 @@ bool App::actionSaveAs() {
     ofn.lpstrDefExt = L"json";
     ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_EXPLORER;
     ofn.lpstrTitle = L"Сохранить резюме";
-    std::wstring initial = directoryOf(path);
+    // The folder the document came from, or the user's documents when it has
+    // never been saved - never wherever the process happens to be running.
+    const std::wstring initial = path.empty() ? platform::documentsDirectory().wstring()
+                                              : path.parent_path().wstring();
     if (!initial.empty()) ofn.lpstrInitialDir = initial.c_str();
     if (!GetSaveFileNameW(&ofn)) return false;
 
@@ -451,7 +441,8 @@ void App::actionExport() {
     ofn.lpstrDefExt = L"pdf";
     ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_EXPLORER;
     ofn.lpstrTitle = L"Экспорт PDF";
-    std::wstring initial = directoryOf(path);
+    const std::wstring initial = path.empty() ? platform::documentsDirectory().wstring()
+                                              : path.parent_path().wstring();
     if (!initial.empty()) ofn.lpstrInitialDir = initial.c_str();
     if (!GetSaveFileNameW(&ofn)) return;
 
@@ -543,7 +534,7 @@ void App::actionRedo() {
 // ----------------------------------------------------------- recent files
 
 void App::showRecentMenu() {
-    const std::vector<std::wstring> files = recentFiles();
+    const std::vector<Path> files = app::recentFiles();
     HMENU menu = CreatePopupMenu();
     if (files.empty()) {
         AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, L"Пока ничего не открывали");
@@ -551,7 +542,7 @@ void App::showRecentMenu() {
         for (size_t i = 0; i < files.size(); ++i) {
             // A single & in a path would be eaten as a mnemonic and underline
             // the character after it, so every one is doubled.
-            std::wstring label = std::to_wstring(i + 1) + L". " + files[i];
+            std::wstring label = std::to_wstring(i + 1) + L". " + files[i].wstring();
             for (size_t at = label.find(L'&'); at != std::wstring::npos;
                  at = label.find(L'&', at + 2))
                 label.insert(at, 1, L'&');
@@ -572,7 +563,7 @@ void App::showRecentMenu() {
 }
 
 void App::openRecent(int index) {
-    const std::vector<std::wstring> files = recentFiles();
+    const std::vector<Path> files = app::recentFiles();
     if (index < 0 || static_cast<size_t>(index) >= files.size()) return;
     if (!confirmDiscard()) return;
     openPath(files[static_cast<size_t>(index)]);
@@ -584,7 +575,7 @@ void App::writeRecovery() {
     // Only unsaved work is worth a snapshot; a saved document is already on
     // disk in a better place than the recovery file.
     if (!dirty) return;
-    writeAutosave(form.collect(), path);
+    app::writeAutosave(form.collect(), path);
 }
 
 // ------------------------------------------------------------------ print
@@ -594,7 +585,7 @@ void App::actionPrint() {
         MessageBoxW(hwnd, L"Шрифты не загружены, печать невозможна.", kAppName, MB_ICONERROR);
         return;
     }
-    const std::wstring title = path.empty() ? std::wstring(kAppName) : fileNameOf(path);
+    const std::wstring title = path.empty() ? std::wstring(kAppName) : path.filename().wstring();
     std::wstring error;
     switch (printDocument(hwnd, ::cvb::layout(form.collect(), fonts), fonts, title, error)) {
         case PrintResult::Printed:
@@ -713,12 +704,12 @@ void App::build(HINSTANCE instance) {
 
     // Unsaved work from a session that ended badly outranks anything else we
     // might open, so it is offered before the sample is even looked for.
-    Recovery recovery;
+    app::Recovery recovery;
     bool restored = false;
-    if (findRecovery(recovery)) {
+    if (app::findRecovery(recovery)) {
         const std::wstring what = recovery.origin.empty()
                                       ? std::wstring(L"несохранённое резюме")
-                                      : fileNameOf(recovery.origin);
+                                      : recovery.origin.filename().wstring();
         const std::wstring question =
             L"Прошлый сеанс завершился, не сохранив изменения.\n\n"
             L"Восстановить " + what + L"?";
@@ -730,7 +721,7 @@ void App::build(HINSTANCE instance) {
             updateTitle();
             restored = true;
         } else {
-            clearAutosave();
+            app::clearAutosave();
         }
     }
 
@@ -743,16 +734,16 @@ void App::build(HINSTANCE instance) {
         CV startup = emptyCV();
         std::string ignored;
         bool loaded = false;
-        for (const std::wstring& candidate : {exeDirectory() + L"\\sample_cv.json",
-                                              std::wstring(L"sample_cv.json"),
-                                              exeDirectory() + L"\\..\\sample_cv.json"}) {
+        const Path exeDir = platform::executableDirectory();
+        for (const Path& candidate : {exeDir / L"sample_cv.json", Path(L"sample_cv.json"),
+                                      exeDir.parent_path() / L"sample_cv.json"}) {
             if (load(candidate, startup, ignored)) {
                 loaded = true;
                 break;
             }
         }
         if (!loaded) startup = emptyCV();
-        loadCV(startup, std::wstring());
+        loadCV(startup, Path());
         setStatus(loaded ? L"Загружен пример sample_cv.json" : L"Готово");
     }
 
@@ -896,7 +887,7 @@ LRESULT CALLBACK mainProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
                 case IDM_PRINT: app->actionPrint(); return 0;
                 case IDM_UNDO: app->actionUndo(); return 0;
                 case IDM_REDO: app->actionRedo(); return 0;
-                case IDM_RECENT_CLEAR: clearRecentFiles(); return 0;
+                case IDM_RECENT_CLEAR: app::clearRecentFiles(); return 0;
                 case IDM_EXIT: SendMessageW(window, WM_CLOSE, 0, 0); return 0;
                 case IDC_PREV_PAGE: app->preview.setPage(app->preview.page() - 1); return 0;
                 case IDC_NEXT_PAGE: app->preview.setPage(app->preview.page() + 1); return 0;
@@ -945,7 +936,7 @@ LRESULT CALLBACK mainProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
             if (app && !app->confirmDiscard()) return 0;
             // Closing on purpose - saved, or knowingly discarded - means there
             // is nothing left to recover on the next start.
-            clearAutosave();
+            app::clearAutosave();
             DestroyWindow(window);
             return 0;
         case WM_DESTROY:

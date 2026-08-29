@@ -14,6 +14,7 @@
 #include <cwchar>
 #include <iterator>
 
+#include "settings.h"
 #include "ui.h"
 
 #ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
@@ -21,18 +22,16 @@
 #endif
 
 namespace cvb {
-// Shared with settings.cpp: one registry key holds everything the app
-// remembers between runs.
-const wchar_t kSettingsKey[] = L"Software\\CV Builder";
-const wchar_t kAppFolderName[] = L"CV Builder";
-
 namespace {
 
 // 1809 named the attribute 19; it moved to 20 in 20H1 and the old number was
 // left working on the builds that shipped with it.
 constexpr DWORD kImmersiveDarkModeLegacy = 19;
 
-constexpr wchar_t kSettingsValue[] = L"ThemeMode";
+// Stored through the platform settings layer, which on Windows is the same
+// registry key and the same value name it has always been.
+constexpr char kThemeModeSetting[] = "ThemeMode";
+
 constexpr wchar_t kPersonalizeKey[] =
     L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 
@@ -80,6 +79,8 @@ DWORD windowsBuild() {
     return major >= 10 ? build : 0;
 }
 
+// Only the system's own preference is read straight from the registry: that is
+// a question about Windows, not a setting of ours.
 DWORD readDword(HKEY root, const wchar_t* key, const wchar_t* value, DWORD fallback) {
     DWORD data = fallback;
     DWORD size = sizeof data;
@@ -154,25 +155,18 @@ void initTheme() {
         if (gSetPreferredAppMode) gSetPreferredAppMode(PAM_AllowDark);
     }
 
-    DWORD saved = readDword(HKEY_CURRENT_USER, kSettingsKey, kSettingsValue,
-                            static_cast<DWORD>(ThemeMode::System));
-    gMode = saved <= static_cast<DWORD>(ThemeMode::Dark) ? static_cast<ThemeMode>(saved)
-                                                         : ThemeMode::System;
+    const int saved = platform::settings::readInt(kThemeModeSetting,
+                                                  static_cast<int>(ThemeMode::System));
+    gMode = (saved >= 0 && saved <= static_cast<int>(ThemeMode::Dark))
+                ? static_cast<ThemeMode>(saved)
+                : ThemeMode::System;
     recompute();
 }
 
 void setThemeMode(ThemeMode mode) {
     gMode = mode;
     recompute();
-
-    HKEY key = nullptr;
-    if (RegCreateKeyExW(HKEY_CURRENT_USER, kSettingsKey, 0, nullptr, 0, KEY_SET_VALUE, nullptr,
-                        &key, nullptr) != ERROR_SUCCESS)
-        return;
-    DWORD value = static_cast<DWORD>(mode);
-    RegSetValueExW(key, kSettingsValue, 0, REG_DWORD, reinterpret_cast<const BYTE*>(&value),
-                   sizeof value);
-    RegCloseKey(key);
+    platform::settings::writeInt(kThemeModeSetting, static_cast<int>(mode));
 }
 
 void refreshTheme() { recompute(); }
