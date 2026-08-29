@@ -3,10 +3,11 @@
 #
 #   tools/release-linux.sh [--no-clean]
 #
-# Produces, named after the version in res/version.h:
+# Produces, named after the version in res/version.h and filed under it, beside
+# the Windows artifacts of the same release:
 #
-#   releases/CVBuilder-<version>-linux-x86_64.tar.gz   both programs and the font
-#   releases/cvcli-<version>-linux-x86_64              the console renderer alone
+#   releases/<version>/CVBuilder-<version>-linux-x86_64.tar.gz
+#   releases/<version>/cvcli-<version>-linux-x86_64      the console renderer alone
 #
 # The console renderer is published as a bare file as well as inside the archive:
 # it needs only libstdc++ and glibc, and for anyone who wants nothing but JSON in
@@ -62,7 +63,9 @@ if [ ! -x "$bin/cvcli" ]; then
 fi
 
 # --------------------------------------------------------------- collecting
-releases=releases
+# One directory per release, so a version's artifacts stay together whatever
+# platform they were built on.
+releases=releases/$version
 mkdir -p "$releases"
 
 name="CVBuilder-$version-linux-x86_64"
