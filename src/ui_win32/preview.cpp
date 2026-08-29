@@ -13,6 +13,8 @@
 
 #include <algorithm>
 
+#include "canvas.h"
+#include "document_painter.h"
 #include "ui.h"
 
 namespace cvb {
@@ -37,6 +39,52 @@ D2D1_COLOR_F toD2D(COLORREF c) {
     return D2D1::ColorF(GetRValue(c) / 255.0f, GetGValue(c) / 255.0f, GetBValue(c) / 255.0f, 1.0f);
 }
 
+// Direct2D as a Canvas. Everything it knows about the document arrives through
+// these three calls; the page design, the pagination and the shaping happen in
+// the shared painter, so this backend cannot drift away from the PDF writer.
+//
+// The scale and the position of the sheet are already in the render target's
+// transform, so the coordinates here are the document's own points.
+class D2DCanvas : public cvb::Canvas {
+public:
+    D2DCanvas(ID2D1RenderTarget* target, ID2D1SolidColorBrush* brush, IDWriteFontFace* const* faces)
+        : target_(target), brush_(brush), faces_(faces) {}
+
+    void fillRect(double x, double y, double width, double height, cvb::RGB color) override {
+        brush_->SetColor(toD2D(color));
+        target_->FillRectangle(D2D1::RectF(static_cast<float>(x), static_cast<float>(y),
+                                          static_cast<float>(x + width),
+                                          static_cast<float>(y + height)),
+                               brush_);
+    }
+
+    void drawLine(double x1, double y1, double x2, double y2, double width,
+                  cvb::RGB color) override {
+        brush_->SetColor(toD2D(color));
+        target_->DrawLine(D2D1::Point2F(static_cast<float>(x1), static_cast<float>(y1)),
+                          D2D1::Point2F(static_cast<float>(x2), static_cast<float>(y2)), brush_,
+                          static_cast<float>(width));
+    }
+
+    void drawGlyphs(double x, double y, double size, bool bold, const cvb::GlyphRun& run,
+                    cvb::RGB color) override {
+        DWRITE_GLYPH_RUN glyphs{};
+        glyphs.fontFace = faces_[bold ? 1 : 0];
+        glyphs.fontEmSize = static_cast<FLOAT>(size);
+        glyphs.glyphCount = static_cast<UINT32>(run.count);
+        glyphs.glyphIndices = run.glyphs;
+        glyphs.glyphAdvances = run.advances;
+        brush_->SetColor(toD2D(color));
+        target_->DrawGlyphRun(D2D1::Point2F(static_cast<float>(x), static_cast<float>(y)), &glyphs,
+                              brush_, DWRITE_MEASURING_MODE_NATURAL);
+    }
+
+private:
+    ID2D1RenderTarget* target_;
+    ID2D1SolidColorBrush* brush_;
+    IDWriteFontFace* const* faces_;
+};
+
 }  // namespace
 
 struct PreviewImpl {
@@ -49,6 +97,9 @@ struct PreviewImpl {
     IDWriteFontFace* faces[2] = {nullptr, nullptr};
 
     const FontSet* fonts = nullptr;
+    // Holds its shaping buffers between frames, so a scroll notch or a keystroke
+    // repaints without allocating.
+    DocumentPainter painter;
     Document doc;
     std::wstring error;
     int page = 0;
@@ -119,42 +170,16 @@ bool PreviewImpl::ensureTarget() {
 }
 
 void PreviewImpl::drawPage(const Page& sheet, D2D1_POINT_2F origin) {
+    // Zoom and the position of the sheet on the desk live in the transform, so
+    // the painter below works in the document's own points and the same page can
+    // be drawn at any size without the drawing code knowing.
     const float s = static_cast<float>(scale());
     target->SetTransform(D2D1::Matrix3x2F::Scale(s, s) *
                          D2D1::Matrix3x2F::Translation(origin.x, origin.y));
 
-    brush->SetColor(toD2D(sheet.background.color));
-    target->FillRectangle(
-        D2D1::RectF(0, 0, static_cast<float>(kPageWidth), static_cast<float>(kPageHeight)), brush);
+    D2DCanvas canvas(target, brush, faces);
+    painter.paint(sheet, canvas);
 
-    for (const LineItem& line : sheet.lines) {
-        brush->SetColor(toD2D(line.color));
-        target->DrawLine(D2D1::Point2F(static_cast<float>(line.x1), static_cast<float>(line.y1)),
-                         D2D1::Point2F(static_cast<float>(line.x2), static_cast<float>(line.y2)),
-                         brush, static_cast<float>(line.width));
-    }
-
-    std::vector<uint16_t> glyphs;
-    std::vector<FLOAT> advances;
-    for (const TextItem& item : sheet.texts) {
-        const Font& font = fonts->face(item.bold);
-        font.shape(item.text, glyphs, nullptr);
-        if (glyphs.empty()) continue;
-        advances.resize(glyphs.size());
-        for (size_t i = 0; i < glyphs.size(); ++i)
-            advances[i] = static_cast<FLOAT>(font.advance(glyphs[i]) * item.size);
-
-        DWRITE_GLYPH_RUN run{};
-        run.fontFace = faces[item.bold ? 1 : 0];
-        run.fontEmSize = static_cast<FLOAT>(item.size);
-        run.glyphCount = static_cast<UINT32>(glyphs.size());
-        run.glyphIndices = glyphs.data();
-        run.glyphAdvances = advances.data();
-        brush->SetColor(toD2D(item.color));
-        target->DrawGlyphRun(
-            D2D1::Point2F(static_cast<float>(item.x), static_cast<float>(item.y)), &run, brush,
-            DWRITE_MEASURING_MODE_NATURAL);
-    }
     target->SetTransform(D2D1::Matrix3x2F::Identity());
 }
 
@@ -345,6 +370,7 @@ bool PreviewPane::create(HWND parent, HINSTANCE instance) {
 
 void PreviewPane::setFonts(const FontSet* fonts) {
     impl_->fonts = fonts;
+    impl_->painter.setFonts(fonts);
     release(impl_->faces[0]);
     release(impl_->faces[1]);
 }

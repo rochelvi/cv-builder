@@ -1,28 +1,59 @@
 // The printer backend: the same list of primitives the preview draws and the
 // PDF writer writes, put on a device context instead.
 //
-// Nothing here knows what a CV is. It receives a laid-out Document in points
-// and paints it, which is why a printed page cannot disagree with what is on
-// screen - the disagreement would have to come from the layout engine, and
-// there is only one of those.
+// Nothing here knows what a CV is. It receives a laid-out Document in points and
+// paints it through the shared painter, which is why a printed page cannot
+// disagree with what is on screen - the disagreement would have to come from the
+// layout engine, and there is only one of those.
+//
+// Glyph ids, not strings. Asking GDI to set a string means asking it to choose
+// glyphs and advances, and it would be entitled to choose differently from the
+// font this document was measured with - or, if the face is not installed at all,
+// to substitute another one silently. So the bundled font file is added to the
+// process privately and the run is drawn with ETO_GLYPH_INDEX, the same glyph ids
+// that go into the PDF.
 #include <windows.h>
 
 #include <commdlg.h>
 
 #include <cmath>
 #include <map>
+#include <string>
 
+#include "canvas.h"
+#include "document_painter.h"
 #include "ui.h"
 
 namespace cvb {
 namespace {
 
-// A GDI font per (size, weight) actually used on the page. A CV has a handful
-// of distinct sizes, so this keeps font creation to single figures instead of
-// one per text run.
+// Makes a font file usable by this process without installing it, and takes it
+// away again afterwards. Needed because the face the document is measured with
+// is the one shipped beside the program, which the system knows nothing about.
+class PrivateFont {
+public:
+    explicit PrivateFont(const Path& path) {
+        if (path.empty()) return;
+        // FR_PRIVATE: visible to this process only, and gone when it exits even
+        // if the removal below is missed.
+        if (AddFontResourceExW(path.c_str(), FR_PRIVATE, nullptr) > 0) path_ = path;
+    }
+    ~PrivateFont() {
+        if (!path_.empty()) RemoveFontResourceExW(path_.c_str(), FR_PRIVATE, nullptr);
+    }
+    PrivateFont(const PrivateFont&) = delete;
+    PrivateFont& operator=(const PrivateFont&) = delete;
+
+private:
+    Path path_;
+};
+
+// A GDI font per (size, weight) actually used on the page. A CV has a handful of
+// distinct sizes, so this keeps font creation to single figures instead of one
+// per text run.
 class FontCache {
 public:
-    FontCache(const std::wstring& family, double scale) : family_(family), scale_(scale) {}
+    FontCache(std::wstring family, double scale) : family_(std::move(family)), scale_(scale) {}
 
     ~FontCache() {
         for (auto& entry : fonts_) DeleteObject(entry.second);
@@ -66,47 +97,60 @@ private:
 
 COLORREF toGdi(const RGB& c) { return RGB(c.r, c.g, c.b); }
 
-void drawPage(HDC dc, const Page& sheet, double scale, int offsetX, int offsetY,
-              FontCache& fonts) {
-    // Points to device units, shifted by the printer's unprintable margin: the
-    // context's origin is the corner of the printable area, but the layout
-    // measures from the corner of the sheet.
-    auto X = [&](double x) { return static_cast<int>(std::lround(x * scale)) - offsetX; };
-    auto Y = [&](double y) { return static_cast<int>(std::lround(y * scale)) - offsetY; };
+// GDI as a Canvas. Points to device units, shifted by the printer's unprintable
+// margin: the context's origin is the corner of the printable area, but the
+// layout measures from the corner of the sheet.
+class GdiCanvas : public Canvas {
+public:
+    GdiCanvas(HDC dc, double scale, int offsetX, int offsetY, FontCache& fonts)
+        : dc_(dc), scale_(scale), offsetX_(offsetX), offsetY_(offsetY), fonts_(fonts) {
+        SetBkMode(dc_, TRANSPARENT);
+        SetTextAlign(dc_, TA_LEFT | TA_BASELINE);
+    }
 
-    // The template's background is part of the design, so it is printed like
-    // everything else. On a dark template that is a lot of toner - a fact
-    // worth knowing before pressing Print, not a reason for this backend to
-    // quietly render something other than the document.
-    RECT page{X(0), Y(0), X(kPageWidth), Y(kPageHeight)};
-    HBRUSH back = CreateSolidBrush(toGdi(sheet.background.color));
-    FillRect(dc, &page, back);
-    DeleteObject(back);
+    void fillRect(double x, double y, double width, double height, RGB color) override {
+        RECT box{X(x), Y(y), X(x + width), Y(y + height)};
+        HBRUSH brush = CreateSolidBrush(toGdi(color));
+        FillRect(dc_, &box, brush);
+        DeleteObject(brush);
+    }
 
-    for (const LineItem& line : sheet.lines) {
-        const int width = std::max(1, static_cast<int>(std::lround(line.width * scale)));
-        HPEN pen = CreatePen(PS_SOLID, width, toGdi(line.color));
-        HGDIOBJ oldPen = SelectObject(dc, pen);
-        MoveToEx(dc, X(line.x1), Y(line.y1), nullptr);
-        LineTo(dc, X(line.x2), Y(line.y2));
-        SelectObject(dc, oldPen);
+    void drawLine(double x1, double y1, double x2, double y2, double width, RGB color) override {
+        const int pixels = std::max(1, static_cast<int>(std::lround(width * scale_)));
+        HPEN pen = CreatePen(PS_SOLID, pixels, toGdi(color));
+        HGDIOBJ oldPen = SelectObject(dc_, pen);
+        MoveToEx(dc_, X(x1), Y(y1), nullptr);
+        LineTo(dc_, X(x2), Y(y2));
+        SelectObject(dc_, oldPen);
         DeleteObject(pen);
     }
 
-    // Every run is positioned absolutely by the layout engine, so GDI only has
-    // to place one string at a time and small differences in its own advance
-    // calculation cannot accumulate across the page.
-    SetBkMode(dc, TRANSPARENT);
-    SetTextAlign(dc, TA_LEFT | TA_BASELINE);
-    for (const TextItem& item : sheet.texts) {
-        const std::wstring text = widen(item.text);
-        if (text.empty()) continue;
-        HGDIOBJ oldFont = SelectObject(dc, fonts.get(item.size, item.bold));
-        SetTextColor(dc, toGdi(item.color));
-        TextOutW(dc, X(item.x), Y(item.y), text.c_str(), static_cast<int>(text.size()));
-        SelectObject(dc, oldFont);
+    void drawGlyphs(double x, double y, double size, bool bold, const GlyphRun& run,
+                    RGB color) override {
+        if (run.count == 0) return;
+        HGDIOBJ oldFont = SelectObject(dc_, fonts_.get(size, bold));
+        SetTextColor(dc_, toGdi(color));
+        // A glyph id is 16 bits and so is a WCHAR; with ETO_GLYPH_INDEX the array
+        // is read as ids rather than characters. No advances are passed: the font
+        // selected here is the file the run was shaped from, so its own advances
+        // are the right ones and are carried at device precision rather than
+        // rounded to whole dots per glyph.
+        ExtTextOutW(dc_, X(x), Y(y), ETO_GLYPH_INDEX, nullptr,
+                    reinterpret_cast<const wchar_t*>(run.glyphs),
+                    static_cast<UINT>(run.count), nullptr);
+        SelectObject(dc_, oldFont);
     }
-}
+
+private:
+    int X(double x) const { return static_cast<int>(std::lround(x * scale_)) - offsetX_; }
+    int Y(double y) const { return static_cast<int>(std::lround(y * scale_)) - offsetY_; }
+
+    HDC dc_;
+    double scale_;
+    int offsetX_;
+    int offsetY_;
+    FontCache& fonts_;
+};
 
 }  // namespace
 
@@ -114,6 +158,10 @@ PrintResult printDocument(HWND owner, const Document& doc, const FontSet& fonts,
                           const std::wstring& title, std::wstring& error) {
     if (doc.pages.empty()) {
         error = L"Нечего печатать.";
+        return PrintResult::Failed;
+    }
+    if (!fonts.valid()) {
+        error = L"Шрифты не загружены.";
         return PrintResult::Failed;
     }
 
@@ -153,6 +201,14 @@ PrintResult printDocument(HWND owner, const Document& doc, const FontSet& fonts,
         last = std::min<size_t>(static_cast<size_t>(dialog.nToPage) - 1, doc.pages.size() - 1);
     }
 
+    // The faces this document was measured with, made available to GDI under
+    // their own family name for as long as the job lasts. Both files are
+    // registered: regular and bold are separate files, and asking for FW_BOLD of
+    // a family that only has the regular installed gets a synthesised, wider
+    // bold that would not match the PDF.
+    PrivateFont regular(fonts.regular().path());
+    PrivateFont bold(fonts.bold().path());
+
     const double scale = GetDeviceCaps(dc, LOGPIXELSX) / 72.0;
     const int offsetX = GetDeviceCaps(dc, PHYSICALOFFSETX);
     const int offsetY = GetDeviceCaps(dc, PHYSICALOFFSETY);
@@ -167,13 +223,15 @@ PrintResult printDocument(HWND owner, const Document& doc, const FontSet& fonts,
         return PrintResult::Failed;
     }
 
+    DocumentPainter painter(fonts);
     bool ok = true;
     for (size_t i = first; i <= last && ok; ++i) {
         if (StartPage(dc) <= 0) {
             ok = false;
             break;
         }
-        drawPage(dc, doc.pages[i], scale, offsetX, offsetY, cache);
+        GdiCanvas canvas(dc, scale, offsetX, offsetY, cache);
+        painter.paint(doc.pages[i], canvas);
         if (EndPage(dc) <= 0) ok = false;
     }
 
