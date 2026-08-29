@@ -1,7 +1,5 @@
 #include "font.h"
 
-#include <windows.h>
-
 #include <algorithm>
 #include <cstring>
 
@@ -87,31 +85,72 @@ const Font::Table* Font::table(const char* tag) const {
     return it == tables_.end() ? nullptr : &it->second;
 }
 
-bool Font::loadFromFile(const Path& path, std::string& error) {
-    data_.clear();
+bool Font::loadFromFile(const Path& path, int faceIndex, std::string& error) {
+    std::vector<uint8_t> data;
+    std::string why;
+    if (!readFile(path, data, why)) {
+        error = "не удалось прочитать файл шрифта";
+        return false;
+    }
+    if (!loadFromMemory(std::move(data), faceIndex, error)) return false;
+    path_ = path;
+    return true;
+}
+
+bool Font::loadFromMemory(std::vector<uint8_t> data, int faceIndex, std::string& error) {
+    path_.clear();
+    faceIndex_ = 0;
     tables_.clear();
     cmap_.clear();
     advances_.clear();
     loca_.clear();
+    data_ = std::move(data);
 
-    std::string why;
-    if (!readFile(path, data_, why)) {
-        error = "не удалось прочитать файл шрифта";
+    if (!parse(faceIndex, error)) {
+        data_.clear();
         return false;
     }
+    faceIndex_ = faceIndex;
+    return true;
+}
+
+bool Font::parse(int faceIndex, std::string& error) {
     if (data_.size() < 12) { error = "файл шрифта слишком мал"; return false; }
 
-    uint32_t version = be32(data_.data());
-    if (version == tagOf("ttcf")) { error = "коллекции шрифтов (.ttc) не поддерживаются"; return false; }
+    // A collection (.ttc) is a header of offsets, each pointing at an ordinary
+    // sfnt table directory inside the same file. macOS ships most of its own
+    // faces this way, so refusing them would rule out its system fonts. Table
+    // offsets inside are measured from the start of the file, which is why
+    // everything below this works unchanged.
+    size_t base = 0;
+    if (be32(data_.data()) == tagOf("ttcf")) {
+        if (data_.size() < 16) { error = "обрезанная коллекция шрифтов"; return false; }
+        const uint32_t faces = be32(data_.data() + 8);
+        if (faceIndex < 0 || static_cast<uint32_t>(faceIndex) >= faces) {
+            error = "в коллекции нет такого начертания";
+            return false;
+        }
+        if (data_.size() < 12 + 4u * faces) { error = "обрезанная коллекция шрифтов"; return false; }
+        base = be32(data_.data() + 12 + 4 * static_cast<size_t>(faceIndex));
+        if (base + 12 > data_.size()) { error = "испорченная коллекция шрифтов"; return false; }
+    } else if (faceIndex != 0) {
+        error = "в файле только одно начертание";
+        return false;
+    }
+
+    const uint32_t version = be32(data_.data() + base);
     if (version != 0x00010000 && version != tagOf("true")) {
         error = "не TrueType (OpenType/CFF не поддерживается)";
         return false;
     }
 
-    int numTables = be16(data_.data() + 4);
-    if (data_.size() < static_cast<size_t>(12 + 16 * numTables)) { error = "обрезанный шрифт"; return false; }
+    const int numTables = be16(data_.data() + base + 4);
+    if (data_.size() < base + static_cast<size_t>(12 + 16 * numTables)) {
+        error = "обрезанный шрифт";
+        return false;
+    }
     for (int i = 0; i < numTables; ++i) {
-        const uint8_t* rec = data_.data() + 12 + 16 * i;
+        const uint8_t* rec = data_.data() + base + 12 + 16 * static_cast<size_t>(i);
         Table t;
         t.offset = be32(rec + 8);
         t.length = be32(rec + 12);
@@ -119,12 +158,10 @@ bool Font::loadFromFile(const Path& path, std::string& error) {
             tables_[be32(rec)] = t;
     }
 
-    if (!readHead(error)) { data_.clear(); return false; }
-    if (!readMetrics(error)) { data_.clear(); return false; }
+    if (!readHead(error)) return false;
+    if (!readMetrics(error)) return false;
     readCmap();
-    if (cmap_.empty()) { error = "в шрифте нет таблицы Unicode cmap"; data_.clear(); return false; }
-
-    path_ = path;
+    if (cmap_.empty()) { error = "в шрифте нет таблицы Unicode cmap"; return false; }
     return true;
 }
 
@@ -429,33 +466,21 @@ std::vector<uint8_t> Font::subset(const std::vector<uint16_t>& glyphs) const {
 
 // ------------------------------------------------------------------ FontSet
 
-bool FontSet::loadSystem(std::string& error) {
-    wchar_t windir[MAX_PATH] = {0};
-    UINT n = GetWindowsDirectoryW(windir, MAX_PATH);
-    const Path fonts = Path(n ? std::wstring(windir, n) : std::wstring(L"C:\\Windows")) / L"Fonts";
-
-    // Arial first: it is metrically identical to the template's Helvetica, so
-    // line breaks land exactly where the original design put them.
-    // Third column is the GDI family name of the same face, for backends that
-    // go through the system rather than through the parsed file.
-    const wchar_t* candidates[][3] = {
-        {L"arial.ttf", L"arialbd.ttf", L"Arial"},
-        {L"segoeui.ttf", L"segoeuib.ttf", L"Segoe UI"},
-        {L"tahoma.ttf", L"tahomabd.ttf", L"Tahoma"},
-        {L"verdana.ttf", L"verdanab.ttf", L"Verdana"},
-        {L"calibri.ttf", L"calibrib.ttf", L"Calibri"},
-    };
-    std::string last = "шрифты не найдены";
-    for (const auto& entry : candidates) {
+bool FontSet::load(const std::vector<FontChoice>& candidates, std::string& error) {
+    std::string last = "список шрифтов пуст";
+    for (const FontChoice& choice : candidates) {
         Font regular, bold;
-        if (!regular.loadFromFile(fonts / entry[0], last)) continue;
-        if (!bold.loadFromFile(fonts / entry[1], last)) continue;
+        if (!regular.loadFromFile(choice.regular, choice.regularFace, last)) continue;
+        if (!bold.loadFromFile(choice.bold, choice.boldFace, last)) continue;
+        // Both halves parsed, so the pair is usable; a candidate is never taken
+        // apart, because a regular from one face and a bold from another would
+        // measure and print as two different designs.
         regular_ = std::move(regular);
         bold_ = std::move(bold);
-        family_ = entry[2];
+        family_ = choice.family;
         return true;
     }
-    error = "не удалось загрузить системный шрифт (" + last + ")";
+    error = "не удалось загрузить шрифт (" + last + ")";
     return false;
 }
 

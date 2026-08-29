@@ -48,6 +48,18 @@ endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
+# Puts assets/fonts next to an executable, which is the first place the program
+# looks for the bundled face. Every runnable target needs it: without the font
+# the layout falls back to whatever the system has, and the output stops being
+# reproducible - the one thing the bundled font exists to prevent.
+function(cvb_stage_assets target)
+    add_custom_command(TARGET ${target} POST_BUILD
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory
+                               "${PROJECT_SOURCE_DIR}/assets"
+                               "$<TARGET_FILE_DIR:${target}>/assets"
+                       VERBATIM)
+endfunction()
+
 # Only meaningful on Windows; kept as an option so the cross-platform front end
 # can be built there too without dragging the Win32 one along.
 option(CVB_BUILD_WIN32_UI "Build the original Win32/Direct2D front end" ${WIN32})

@@ -18,12 +18,24 @@ namespace cvb {
 
 class Font {
 public:
-    bool loadFromFile(const Path& path, std::string& error);
+    // `faceIndex` picks a face out of a TrueType collection (.ttc), where
+    // several faces share one file - which is how macOS ships most of its own.
+    // A plain .ttf has exactly face 0.
+    bool loadFromFile(const Path& path, int faceIndex, std::string& error);
+    bool loadFromFile(const Path& path, std::string& error) {
+        return loadFromFile(path, 0, error);
+    }
+    // For a face that is not a file of its own - one read out of an archive, or
+    // compiled into the program.
+    bool loadFromMemory(std::vector<uint8_t> data, int faceIndex, std::string& error);
+
     bool valid() const { return !data_.empty(); }
 
-    // Where the face came from. A screen backend hands this to the system text
-    // engine so it rasterises the very file the metrics were measured from.
+    // Where the face came from, and which face in it. A screen backend hands
+    // both to the system text engine so it rasterises the very file the metrics
+    // were measured from. Empty path for a face loaded from memory.
     const Path& path() const { return path_; }
+    int faceIndex() const { return faceIndex_; }
 
     // Glyph id for a code point, 0 (.notdef) when the font has no such glyph.
     uint16_t glyphFor(uint32_t codePoint) const;
@@ -60,6 +72,7 @@ private:
     struct Table { uint32_t offset = 0, length = 0; };
 
     const Table* table(const char* tag) const;
+    bool parse(int faceIndex, std::string& error);
     bool readHead(std::string& error);
     bool readMetrics(std::string& error);
     void readCmap();
@@ -68,6 +81,7 @@ private:
     void collectComponents(uint16_t glyph, std::vector<bool>& used, int depth) const;
 
     Path path_;
+    int faceIndex_ = 0;
     std::vector<uint8_t> data_;
     std::unordered_map<uint32_t, Table> tables_;
     std::unordered_map<uint32_t, uint16_t> cmap_;
@@ -81,27 +95,38 @@ private:
     bool bold_ = false;
 };
 
-// The regular/bold pair the whole app renders with.
+// One regular/bold pair worth trying, as offered by the bundled assets or by
+// the platform's font list.
+struct FontChoice {
+    Path regular;
+    Path bold;
+    int regularFace = 0;
+    int boldFace = 0;
+    // The name the system knows this face by, UTF-8. The layout engine, the
+    // preview and the PDF writer all work from the parsed file and never need
+    // it; a backend that asks the operating system for a face by name does.
+    std::string family;
+};
+
+// The regular/bold pair the whole app measures, draws and embeds with.
 class FontSet {
 public:
-    // Looks for a metrically suitable Unicode sans face in the system font
-    // directory. Fails only when nothing usable is installed.
-    bool loadSystem(std::string& error);
+    // Tries the candidates in order and keeps the first pair that parses, so the
+    // caller expresses its preference as the order of the list. Fails only when
+    // none of them can be read.
+    bool load(const std::vector<FontChoice>& candidates, std::string& error);
 
     const Font& face(bool bold) const { return bold ? bold_ : regular_; }
     const Font& regular() const { return regular_; }
     const Font& bold() const { return bold_; }
     bool valid() const { return regular_.valid() && bold_.valid(); }
 
-    // The GDI family name of whichever candidate was loaded. The preview and
-    // the PDF writer work from the parsed file and never need this; the
-    // printer backend does, because GDI is asked for a face by name.
-    const std::wstring& family() const { return family_; }
+    const std::string& family() const { return family_; }
 
 private:
     Font regular_;
     Font bold_;
-    std::wstring family_;
+    std::string family_;
 };
 
 }  // namespace cvb

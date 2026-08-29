@@ -88,7 +88,10 @@ bool PreviewImpl::ensureFaces() {
         IDWriteFontFile* file = nullptr;
         if (FAILED(dwrite->CreateFontFileReference(font.path().c_str(), nullptr, &file)))
             return false;
-        HRESULT hr = dwrite->CreateFontFace(DWRITE_FONT_FACE_TYPE_TRUETYPE, 1, &file, 0,
+        // The face index matters for a collection, where one file holds several
+        // faces; for a plain .ttf it is 0 and this is the call it always was.
+        HRESULT hr = dwrite->CreateFontFace(DWRITE_FONT_FACE_TYPE_TRUETYPE, 1, &file,
+                                            static_cast<UINT32>(font.faceIndex()),
                                             DWRITE_FONT_SIMULATIONS_NONE, &faces[i]);
         release(file);
         if (FAILED(hr)) return false;

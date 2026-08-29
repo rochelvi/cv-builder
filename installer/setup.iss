@@ -87,6 +87,10 @@ Source: "{#BinDir}\cvcli.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\sample_cv.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+; The bundled font, and the licence it ships under. Not optional: without it the
+; program falls back to a system face, and the PDF stops being the same file it
+; would be on another machine.
+Source: "..\assets\fonts\*"; DestDir: "{app}\assets\fonts"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"

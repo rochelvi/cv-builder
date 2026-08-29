@@ -3,6 +3,7 @@
 # layer and below any front end, so both front ends share one behaviour rather
 # than each inventing its own.
 add_library(resume_app STATIC
+            fonts.cpp
             recent_files.cpp
             recovery.cpp)
 

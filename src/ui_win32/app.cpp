@@ -12,6 +12,7 @@
 #include <cwchar>
 #include <iterator>
 
+#include "fonts.h"
 #include "paths.h"
 #include "pdf.h"
 #include "recent_files.h"
@@ -695,7 +696,7 @@ void App::build(HINSTANCE instance) {
     applyTheme();
 
     std::string error;
-    fontsReady = fonts.loadSystem(error);
+    fontsReady = app::loadFonts(fonts, error);
     if (fontsReady) {
         preview.setFonts(&fonts);
     } else {

@@ -156,7 +156,7 @@ PrintResult printDocument(HWND owner, const Document& doc, const FontSet& fonts,
     const double scale = GetDeviceCaps(dc, LOGPIXELSX) / 72.0;
     const int offsetX = GetDeviceCaps(dc, PHYSICALOFFSETX);
     const int offsetY = GetDeviceCaps(dc, PHYSICALOFFSETY);
-    FontCache cache(fonts.family(), GetDeviceCaps(dc, LOGPIXELSY) / 72.0);
+    FontCache cache(widen(fonts.family()), GetDeviceCaps(dc, LOGPIXELSY) / 72.0);
 
     DOCINFOW info{};
     info.cbSize = sizeof info;

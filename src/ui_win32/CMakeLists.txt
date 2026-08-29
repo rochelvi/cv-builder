@@ -29,3 +29,4 @@ add_custom_command(TARGET CVBuilder POST_BUILD
                            "${PROJECT_SOURCE_DIR}/sample_cv.json"
                            "$<TARGET_FILE_DIR:CVBuilder>/sample_cv.json"
                    VERBATIM)
+cvb_stage_assets(CVBuilder)
