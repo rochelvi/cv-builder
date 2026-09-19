@@ -1,4 +1,4 @@
-; Inno Setup script for CV Builder.
+﻿; Inno Setup script for CV Builder.
 ;
 ; Build the executables first (build.ps1), then compile this - or just run
 ; `.\build.ps1 -Installer`, which does both. The output lands in build\ as
@@ -70,13 +70,25 @@ SolidCompression=yes
 CloseApplications=yes
 RestartApplications=no
 
+; The "add to PATH" task edits the environment, and this is what makes Setup
+; broadcast WM_SETTINGCHANGE afterwards - without it a newly opened console
+; would not see cvcli until the next logon.
+ChangesEnvironment=yes
+
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[CustomMessages]
+russian.AddToPath=Добавить папку программы в PATH (чтобы вызывать cvcli из консоли)
+english.AddToPath=Add the program folder to PATH (so cvcli can be run from a console)
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; \
     GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+; Only the console renderer needs this, but PATH holds directories, not files,
+; so what goes in is {app} - the same directory CVBuilder.exe sits in.
+Name: "addtopath"; Description: "{cm:AddToPath}"
 
 [Files]
 Source: "{#BinDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
@@ -105,3 +117,120 @@ Root: HKCU; Subkey: "Software\{#AppName}"; Flags: uninsdeletekey
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; \
     Flags: nowait postinstall skipifsilent
+
+[Code]
+// PATH is edited here rather than with a [Registry] entry appending olddata:
+// that appends a second copy on every repair or upgrade, and the uninstaller
+// still has to take the directory back out without disturbing the rest of the
+// variable. Which PATH is touched follows the install: a per-user install (the
+// default, no administrator needed) edits HKCU, an elevated one the machine
+// variable.
+
+function EnvRootKey: Integer;
+begin
+  if IsAdminInstallMode then Result := HKEY_LOCAL_MACHINE
+  else Result := HKEY_CURRENT_USER;
+end;
+
+function EnvSubKey: String;
+begin
+  if IsAdminInstallMode then
+    Result := 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment'
+  else Result := 'Environment';
+end;
+
+function ReadPath: String;
+begin
+  { REG_EXPAND_SZ is returned unexpanded, so entries like %SystemRoot%\system32
+    survive being read and written back. }
+  if not RegQueryStringValue(EnvRootKey, EnvSubKey, 'Path', Result) then
+    Result := '';
+end;
+
+procedure WritePath(const Value: String);
+begin
+  if not RegWriteExpandStringValue(EnvRootKey, EnvSubKey, 'Path', Value) then
+    MsgBox('PATH could not be updated.', mbError, MB_OK);
+end;
+
+{ Compared without case and without a trailing backslash: the same directory
+  spelled either way is still the same directory. }
+function SamePathEntry(const A, B: String): Boolean;
+begin
+  Result := CompareText(RemoveBackslashUnlessRoot(Trim(A)),
+                        RemoveBackslashUnlessRoot(Trim(B))) = 0;
+end;
+
+function PathHas(const Value, Dir: String): Boolean;
+var
+  Rest, Part: String;
+  P: Integer;
+begin
+  Result := False;
+  Rest := Value;
+  repeat
+    P := Pos(';', Rest);
+    if P > 0 then begin
+      Part := Copy(Rest, 1, P - 1);
+      Rest := Copy(Rest, P + 1, Length(Rest));
+    end else begin
+      Part := Rest;
+      Rest := '';
+    end;
+    if SamePathEntry(Part, Dir) then Result := True;
+  until Result or (Rest = '');
+end;
+
+procedure PathAdd(const Dir: String);
+var
+  Value: String;
+begin
+  Value := ReadPath;
+  if PathHas(Value, Dir) then Exit;
+  if (Value <> '') and (Value[Length(Value)] <> ';') then Value := Value + ';';
+  WritePath(Value + Dir);
+end;
+
+procedure PathRemove(const Dir: String);
+var
+  Rest, Part, Kept: String;
+  P: Integer;
+  Changed: Boolean;
+begin
+  Rest := ReadPath;
+  if Rest = '' then Exit;
+  Kept := '';
+  Changed := False;
+  repeat
+    P := Pos(';', Rest);
+    if P > 0 then begin
+      Part := Copy(Rest, 1, P - 1);
+      Rest := Copy(Rest, P + 1, Length(Rest));
+    end else begin
+      Part := Rest;
+      Rest := '';
+    end;
+    if SamePathEntry(Part, Dir) then Changed := True
+    else if Part <> '' then begin
+      if Kept <> '' then Kept := Kept + ';';
+      Kept := Kept + Part;
+    end;
+  until Rest = '';
+  if Changed then WritePath(Kept);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep = ssPostInstall) and WizardIsTaskSelected('addtopath') then
+    PathAdd(ExpandConstant('{app}'))
+  { Unticking the task on an upgrade has to undo what a previous install did,
+    otherwise the entry can only ever be removed by uninstalling. }
+  else if CurStep = ssPostInstall then
+    PathRemove(ExpandConstant('{app}'));
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+    PathRemove(ExpandConstant('{app}'));
+end;
