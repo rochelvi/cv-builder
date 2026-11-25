@@ -55,11 +55,26 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
-    "icon": ["icons/icon.ico"],
+    "targets": ["nsis", "deb", "appimage"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "publisher": "Daniil Mishin",
     "copyright": "© 2026 Daniil Mishin. Лицензия GPL-3.0",
+    "license": "GPL-3.0-only",
     "category": "Productivity",
-    "shortDescription": "Resume editor with live preview and A4 PDF export"
+    "shortDescription": "Resume editor with live preview and A4 PDF export",
+    "longDescription": "Резюме: слева форма редактирования, справа живой предпросмотр, на выходе A4-PDF.",
+    "resources": {
+      "../LICENSE": "LICENSE",
+      "../assets/fonts/LICENSE-LiberationSans.txt": "LICENSE-LiberationSans.txt"
+    },
+    "windows": {
+      "webviewInstallMode": { "type": "embedBootstrapper" },
+      "nsis": {
+        "installMode": "both",
+        "languages": ["Russian"],
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "installer/hooks.nsh"
+      }
+    }
   }
 }

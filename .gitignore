@@ -25,3 +25,4 @@ target/
 node_modules/
 dist/
 src-tauri/gen/
+src-tauri/binaries/
