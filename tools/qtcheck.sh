@@ -26,6 +26,7 @@ cat > "$work/CMakeLists.txt" <<'EOF'
 cmake_minimum_required(VERSION 3.21)
 project(qtprobe LANGUAGES CXX)
 if(DEFINED CVB_QT_SDK)
+  list(PREPEND CMAKE_PREFIX_PATH "${CVB_QT_SDK}")
   set(qt_search PATHS "${CVB_QT_SDK}" NO_DEFAULT_PATH)
 endif()
 find_package(Qt6 6.4 CONFIG REQUIRED COMPONENTS Core Gui Widgets PrintSupport ${qt_search})
