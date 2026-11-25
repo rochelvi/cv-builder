@@ -628,6 +628,9 @@ dependencies = [
 [[package]]
 name = "cvb-core"
 version = "3.0.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "cvcli"

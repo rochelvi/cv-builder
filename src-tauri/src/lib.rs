@@ -3,6 +3,9 @@
 
 mod commands;
 mod error;
+// Wired to the commands in the step that adds them.
+#[allow(dead_code)]
+mod files;
 
 pub use error::{AppError, AppResult};
 

@@ -8,3 +8,6 @@
 //! exported on another.
 
 pub mod about;
+pub mod json;
+pub mod model;
+pub mod numfmt;
