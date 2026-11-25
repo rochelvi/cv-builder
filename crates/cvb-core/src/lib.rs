@@ -13,3 +13,4 @@ pub mod json;
 pub mod layout;
 pub mod model;
 pub mod numfmt;
+pub mod pdf;
