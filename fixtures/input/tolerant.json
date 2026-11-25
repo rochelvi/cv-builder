@@ -1,0 +1,23 @@
+{
+  "name": 5, "role": null, "email": ["x"], "location": {"a": 1}, "website": true,
+  "summary": "Tabs\there,\r\nCRLF line, raw é and escaped \u00e9\u0301 and \ud83d\ude00 emoji, \/slash, \u0007 bell.",
+  "jobs": "not an array",
+  "volunteering": [5, "x", {"title": "Valid volunteer", "bullets": [1, "kept", null, true]}],
+  "skill_groups": [{"title": "G", "skills": [{"name": "a", "highlight": 1}, {"name": "b", "highlight": 0}, {"name": "c", "highlight": "yes"}, {"name": "d", "highlight": null}, {"name": "   "}]}, {"title": "", "skills": []}, "junk"],
+  "soft_skills": ["one", 2, "three", ""],
+  "education": [{"title": "T", "subtitle": "S", "highlight": 2.5}],
+  "studies": [{"title": "Study", "company": "Uni", "period": "2001", "bullets": ["did things"]}],
+  "lab_bullets": "nope",
+  "sections": [
+    {"id": "lab", "label": "LAB FIRST", "enabled": true, "order": 3.7},
+    {"id": "summary", "enabled": null, "order": -2},
+    {"id": "summary", "label": "dup", "order": 0},
+    {"id": "nonsense", "label": "x", "order": 1},
+    {"id": "jobs", "label": "", "order": "7"},
+    {"id": "volunteering", "label": "Волонтёрство", "enabled": 1, "order": 1e1},
+    {"id": "studies", "label": "studies lower", "enabled": false, "order": 2}
+  ],
+  "theme": {"background": "#0D0F12", "rule": 123, "accent": "#ABCDEF"},
+  "name": "second name ignored",
+  "extra": {"deep": [[[[1]]]]}
+}

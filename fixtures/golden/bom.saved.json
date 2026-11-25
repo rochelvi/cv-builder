@@ -1,0 +1,75 @@
+{
+  "name": "BOM file",
+  "role": "",
+  "email": "",
+  "location": "",
+  "website": "",
+  "summary": "   \n  ",
+  "jobs": [],
+  "volunteering": [],
+  "skill_groups": [],
+  "soft_skills": [],
+  "education": [],
+  "studies": [],
+  "lab_bullets": [],
+  "sections": [
+    {
+      "id": "summary",
+      "label": "Summary",
+      "enabled": true,
+      "order": 0
+    },
+    {
+      "id": "studies",
+      "label": "Education",
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "id": "jobs",
+      "label": "Experience",
+      "enabled": true,
+      "order": 2
+    },
+    {
+      "id": "skill_groups",
+      "label": "Technical Skills",
+      "enabled": true,
+      "order": 3
+    },
+    {
+      "id": "soft_skills",
+      "label": "Soft Skills",
+      "enabled": true,
+      "order": 4
+    },
+    {
+      "id": "education",
+      "label": "Education & Certifications",
+      "enabled": true,
+      "order": 5
+    },
+    {
+      "id": "lab",
+      "label": "Personal Lab",
+      "enabled": true,
+      "order": 6
+    },
+    {
+      "id": "volunteering",
+      "label": "Volunteer Work",
+      "enabled": true,
+      "order": 7
+    }
+  ],
+  "theme": {
+    "background": "#0d0f12",
+    "rule": "#2a2f3a",
+    "heading": "#e8ecf2",
+    "body": "#9aa0ae",
+    "subtle": "#7a8292",
+    "faint": "#4a5260",
+    "accent": "#4ade80",
+    "accent2": "#7ab8f5"
+  }
+}

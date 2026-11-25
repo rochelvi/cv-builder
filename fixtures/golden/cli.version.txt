@@ -1,0 +1,2 @@
+CV Builder v2.0.0-release
+© 2026 Daniil Mishin. Лицензия GPL-3.0

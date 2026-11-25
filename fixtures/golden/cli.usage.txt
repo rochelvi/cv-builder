@@ -1,0 +1,4 @@
+usage: cvcli in.json out.pdf [--dump-ops ops.json]
+                            [--fonts regular.ttf bold.ttf]
+       cvcli --font-report [--fonts regular.ttf bold.ttf]
+       cvcli --version

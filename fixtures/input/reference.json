@@ -1,0 +1,99 @@
+{
+  "name": "Даниил Мишин",
+  "role": "SYSTEM ADMINISTRATOR",
+  "email": "mail@example.com",
+  "location": "Москва, Россия",
+  "website": "github.com/example",
+  "summary": "Администратор с опытом в сетях и виртуализации.\n\nВторой абзац.",
+  "jobs": [
+    {
+      "title": "Системный администратор",
+      "period": "2022 – 2025 · 3 года",
+      "company": "ООО «Компания»",
+      "location": "Москва",
+      "bullets": [
+        "Собрал отказоустойчивый кластер",
+        "Перевёл парк на централизованные политики"
+      ]
+    }
+  ],
+  "skill_groups": [
+    {
+      "title": "Сети",
+      "skills": [
+        {
+          "name": "VLAN, LACP",
+          "highlight": true
+        },
+        {
+          "name": "BGP",
+          "highlight": false
+        }
+      ]
+    }
+  ],
+  "soft_skills": [
+    "Внимание к деталям",
+    "Наставничество"
+  ],
+  "education": [
+    {
+      "title": "CCNA",
+      "subtitle": "Cisco, 2024",
+      "highlight": true
+    }
+  ],
+  "lab_bullets": [
+    "Стенд из трёх узлов Proxmox"
+  ],
+  "sections": [
+    {
+      "id": "summary",
+      "label": "Summary",
+      "enabled": true,
+      "order": 0
+    },
+    {
+      "id": "studies",
+      "label": "Education",
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "id": "jobs",
+      "label": "Experience",
+      "enabled": true,
+      "order": 2
+    },
+    {
+      "id": "skill_groups",
+      "label": "Technical Skills",
+      "enabled": true,
+      "order": 3
+    },
+    {
+      "id": "soft_skills",
+      "label": "Soft Skills",
+      "enabled": true,
+      "order": 4
+    },
+    {
+      "id": "education",
+      "label": "Certifications & Courses",
+      "enabled": true,
+      "order": 5
+    },
+    {
+      "id": "lab",
+      "label": "Personal Lab",
+      "enabled": true,
+      "order": 6
+    },
+    {
+      "id": "volunteering",
+      "label": "Volunteer Work",
+      "enabled": true,
+      "order": 7
+    }
+  ]
+}

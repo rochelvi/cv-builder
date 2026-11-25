@@ -1,0 +1,7 @@
+sample pages=2 size=101533 fnv=d49324dbe16d3ea7
+reference pages=1 size=80832 fnv=7410097b186e6353
+empty pages=1 size=754 fnv=e6ea5ad075e1ad24
+bom pages=1 size=29005 fnv=17f802c22c3af2b6
+legacy pages=1 size=77332 fnv=8f3c9df390cd8c87
+tolerant pages=1 size=65872 fnv=95feecfc12785926
+long pages=5 size=177172 fnv=fe2555aaeed289ee

@@ -16,3 +16,6 @@ release.ps1
 
 # aqtinstall's log, left behind when Qt is fetched into a home directory.
 aqtinstall.log
+
+# Reference PDFs of the C++ implementation; see fixtures/README.md.
+!fixtures/golden/*.pdf

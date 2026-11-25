@@ -1,0 +1,153 @@
+{
+  "name": "",
+  "role": "",
+  "email": "",
+  "location": "",
+  "website": "",
+  "summary": "Tabs\there,\r\nCRLF line, raw é and escaped é́ and 😀 emoji, /slash, \u0007 bell.",
+  "jobs": [],
+  "volunteering": [
+    {
+      "title": "",
+      "period": "",
+      "company": "",
+      "location": "",
+      "bullets": []
+    },
+    {
+      "title": "",
+      "period": "",
+      "company": "",
+      "location": "",
+      "bullets": []
+    },
+    {
+      "title": "Valid volunteer",
+      "period": "",
+      "company": "",
+      "location": "",
+      "bullets": [
+        "kept"
+      ]
+    }
+  ],
+  "skill_groups": [
+    {
+      "title": "G",
+      "skills": [
+        {
+          "name": "a",
+          "highlight": true
+        },
+        {
+          "name": "b",
+          "highlight": false
+        },
+        {
+          "name": "c",
+          "highlight": false
+        },
+        {
+          "name": "d",
+          "highlight": false
+        },
+        {
+          "name": "   ",
+          "highlight": false
+        }
+      ]
+    },
+    {
+      "title": "",
+      "skills": []
+    },
+    {
+      "title": "",
+      "skills": []
+    }
+  ],
+  "soft_skills": [
+    "one",
+    "three",
+    ""
+  ],
+  "education": [
+    {
+      "title": "T",
+      "subtitle": "S",
+      "highlight": true
+    }
+  ],
+  "studies": [
+    {
+      "title": "Study",
+      "period": "2001",
+      "company": "Uni",
+      "location": "",
+      "bullets": [
+        "did things"
+      ]
+    }
+  ],
+  "lab_bullets": [],
+  "sections": [
+    {
+      "id": "summary",
+      "label": "Summary",
+      "enabled": false,
+      "order": 0
+    },
+    {
+      "id": "jobs",
+      "label": "",
+      "enabled": false,
+      "order": 1
+    },
+    {
+      "id": "studies",
+      "label": "studies lower",
+      "enabled": false,
+      "order": 2
+    },
+    {
+      "id": "lab",
+      "label": "LAB FIRST",
+      "enabled": true,
+      "order": 3
+    },
+    {
+      "id": "volunteering",
+      "label": "Волонтёрство",
+      "enabled": true,
+      "order": 4
+    },
+    {
+      "id": "skill_groups",
+      "label": "Technical Skills",
+      "enabled": true,
+      "order": 5
+    },
+    {
+      "id": "soft_skills",
+      "label": "Soft Skills",
+      "enabled": true,
+      "order": 6
+    },
+    {
+      "id": "education",
+      "label": "Certifications & Courses",
+      "enabled": true,
+      "order": 7
+    }
+  ],
+  "theme": {
+    "background": "#0D0F12",
+    "rule": "#2a2f3a",
+    "heading": "#e8ecf2",
+    "body": "#9aa0ae",
+    "subtle": "#7a8292",
+    "faint": "#4a5260",
+    "accent": "#ABCDEF",
+    "accent2": "#7ab8f5"
+  }
+}

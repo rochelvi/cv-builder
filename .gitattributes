@@ -1,0 +1,2 @@
+# Reference output is compared byte for byte: no line-ending conversion.
+fixtures/** -text
