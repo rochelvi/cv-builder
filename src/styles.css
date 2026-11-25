@@ -1,11 +1,487 @@
+/* The bundled face, served with the page: the preview positions every
+   character by its advance widths, so it must draw with this very file. */
+@font-face {
+  font-family: "CV Sans";
+  src: url("../assets/fonts/LiberationSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "CV Sans";
+  src: url("../assets/fonts/LiberationSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 html,
 body {
   margin: 0;
   height: 100%;
+  overflow: hidden;
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: var(--window);
+  color: var(--text);
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 13px;
 }
 
-.placeholder {
-  padding: 24px;
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* ------------------------------------------------------------- toolbar */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 6px;
+  background: var(--window);
+  border-bottom: 1px solid var(--card-edge);
+  white-space: nowrap;
+}
+
+.bar-button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: default;
+}
+
+.bar-button:hover:not(:disabled) {
+  background: var(--card);
+  border-color: var(--card-edge);
+}
+
+.bar-button:disabled {
+  opacity: 0.4;
+}
+
+.bar-select {
+  background: var(--field);
+  border: 1px solid var(--card-edge);
+  border-radius: 4px;
+  padding: 2px 4px;
+  min-width: 130px;
+}
+
+.bar-label {
+  padding: 0 8px;
+  min-width: 56px;
+  text-align: center;
+}
+
+.separator {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 6px;
+  background: var(--card-edge);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.split {
+  position: relative;
+  display: inline-flex;
+}
+
+.menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  min-width: 320px;
+  max-width: 70vw;
+  padding: 4px 0;
+  background: var(--pane);
+  border: 1px solid var(--card-edge);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 30%);
+}
+
+.menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 5px 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-item:hover:not(:disabled) {
+  background: var(--card);
+}
+
+.menu-item:disabled {
+  color: var(--subtext);
+}
+
+.menu hr {
+  border: 0;
+  border-top: 1px solid var(--card-edge);
+  margin: 4px 0;
+}
+
+/* --------------------------------------------------------------- panes */
+
+.panes {
+  display: grid;
+  grid-template-columns: 1fr 6px 1fr;
+  min-height: 0;
+}
+
+.splitter {
+  cursor: col-resize;
+  background: var(--window);
+  border-left: 1px solid var(--card-edge);
+  border-right: 1px solid var(--card-edge);
+}
+
+/* -------------------------------------------------------------- editor */
+
+.editor {
+  overflow-y: auto;
+  padding: 14px;
+  background: var(--pane);
+}
+
+.block {
+  margin-bottom: 20px;
+}
+
+.heading {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.hint {
+  color: var(--subtext);
+  margin: 0 0 6px;
+}
+
+.label {
+  color: var(--subtext);
+}
+
+.field {
+  width: 100%;
+  min-width: 0;
+  background: var(--field);
+  border: 1px solid var(--card-edge);
+  border-radius: 3px;
+  padding: 3px 5px;
+}
+
+.field:focus {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.field::placeholder {
+  color: var(--subtext);
+}
+
+.area {
+  min-height: 96px;
+  resize: vertical;
+  line-height: 1.35;
+}
+
+.stack,
+.rows,
+.cards,
+.card,
+.string-list,
+.card-list,
+.colors {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cards {
+  gap: 8px;
+}
+
+.triple {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.row > .field {
+  flex: 1;
+}
+
+.section-row > .check {
+  width: 190px;
+  flex: none;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.check input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.tools {
+  display: inline-flex;
+  gap: 4px;
+  flex: none;
+}
+
+.tool {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 3px;
+}
+
+.tool:hover {
+  border-color: var(--accent);
+}
+
+.add {
+  align-self: flex-start;
+  min-width: 170px;
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 4px;
+  padding: 3px 10px;
+  text-align: left;
+}
+
+.add:hover {
+  border-color: var(--accent);
+}
+
+.card {
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 8px;
+}
+
+.card-tools {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+
+.swatch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch {
+  width: 84px;
+  height: 26px;
+  flex: none;
+  border: 1px solid var(--card-edge);
+  border-radius: 0;
+  font-family: Consolas, "Cascadia Mono", monospace;
+}
+
+.swatch:focus {
+  outline: 1px solid var(--accent);
+}
+
+.picker {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------- preview */
+
+.preview {
+  overflow: auto;
+  background: var(--preview-back);
+  padding: 16px;
+}
+
+.sheet {
+  margin: 0 auto;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 45%);
+}
+
+.page {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.page text {
+  font-family: "CV Sans";
+  white-space: pre;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  text-rendering: geometricPrecision;
+}
+
+/* ---------------------------------------------------------- status bar */
+
+.statusbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 8px;
+  border-top: 1px solid var(--card-edge);
+  background: var(--window);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.status-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.version {
+  color: var(--subtext);
+}
+
+/* -------------------------------------------------------- error dialog */
+
+.error-dialog {
+  min-width: 360px;
+  max-width: 560px;
+  background: var(--pane);
+  color: var(--text);
+  border: 1px solid var(--card-edge);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.error-dialog::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.error-dialog h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.error-dialog p {
+  margin: 0 0 6px;
+}
+
+.error-dialog .reason {
+  white-space: pre-wrap;
+  color: var(--subtext);
+}
+
+.error-dialog .buttons {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.primary {
+  min-width: 80px;
+  background: var(--accent);
+  color: #ffffff;
+  border: 0;
+  border-radius: 4px;
+  padding: 5px 14px;
+}
+
+/* --------------------------------------------------------------- print */
+
+.print-only {
+  display: none;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    display: block;
+    background: none;
+  }
+
+  body.printing > :not(.print-only) {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  .print-sheet {
+    width: 210mm;
+    height: 297mm;
+    overflow: hidden;
+    break-after: page;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-sheet:last-child {
+    break-after: auto;
+  }
+
+  .print-sheet .page {
+    width: 210mm;
+    height: 297mm;
+  }
 }
