@@ -25,7 +25,10 @@ EOF
 cat > "$work/CMakeLists.txt" <<'EOF'
 cmake_minimum_required(VERSION 3.21)
 project(qtprobe LANGUAGES CXX)
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets PrintSupport)
+if(DEFINED CVB_QT_SDK)
+  set(qt_search PATHS "${CVB_QT_SDK}" NO_DEFAULT_PATH)
+endif()
+find_package(Qt6 6.4 CONFIG REQUIRED COMPONENTS Core Gui Widgets PrintSupport ${qt_search})
 qt_standard_project_setup()
 qt_add_executable(qtprobe main.cpp)
 target_link_libraries(qtprobe PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::PrintSupport)
@@ -38,7 +41,8 @@ cmake=$(command -v cmake || echo "$HOME/.local/bin/cmake")
 sysroot=$HOME/qtsysroot/tree
 extra=()
 if [ -n "${1:-}" ]; then
-  extra+=("-DCMAKE_PREFIX_PATH=$1")
+  qt=$(CDPATH= cd -- "$1" && pwd) || exit 1
+  extra+=("-DCVB_QT_SDK=$qt")
 fi
 if [ -f "$sysroot/usr/include/GL/gl.h" ]; then
   here=$(cd "$(dirname "$0")" && pwd)
