@@ -1,0 +1,12 @@
+[package]
+name = "cvcli"
+description = "Console renderer: resume JSON to PDF without a window"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+cvb-core = { path = "../cvb-core" }

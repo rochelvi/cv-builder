@@ -1,0 +1,9 @@
+[package]
+name = "cvb-core"
+description = "The resume itself: model, JSON, layout, TrueType and PDF - no operating system, no UI"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false

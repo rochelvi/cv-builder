@@ -1,0 +1,11 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+}
+
+.placeholder {
+  padding: 24px;
+}

@@ -1,0 +1,11 @@
+# Hardening for the Windows MSVC build.
+#
+# control-flow-guard: indirect calls are checked against the set of valid
+# targets (/guard:cf). /PDBALTPATH:%_PDB%: the executable names its .pdb by file
+# name only, so the build directory - and with it the user name - does not end
+# up inside the shipped binary.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "control-flow-guard", "-C", "link-arg=/PDBALTPATH:%_PDB%"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "control-flow-guard", "-C", "link-arg=/PDBALTPATH:%_PDB%"]

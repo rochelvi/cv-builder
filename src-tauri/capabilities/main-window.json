@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-window",
+  "description": "What the editor window may do. No file system, dialog or opener access from the page: paths are chosen and used in Rust, so nothing the page sends can name a file.",
+  "windows": ["main"],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-app-info"
+  ]
+}
