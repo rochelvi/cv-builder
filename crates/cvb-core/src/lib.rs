@@ -10,5 +10,6 @@
 pub mod about;
 pub mod font;
 pub mod json;
+pub mod layout;
 pub mod model;
 pub mod numfmt;
