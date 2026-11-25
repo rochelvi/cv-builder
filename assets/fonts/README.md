@@ -16,15 +16,17 @@ License 1.1, текст в `LICENSE-LiberationSans.txt`; она совмести
 разными файлами, а резюме, размеченное в одной версии программы, «поедет» в
 другой.
 
-Приложенный шрифт пробуется первым на всех платформах, системные — только как
-резерв (см. `src/app/fonts.cpp`).
+Шрифт вшит в программу при сборке (`include_bytes!` в `crates/cvb-core/src/font.rs`)
+и используется всегда: системного резерва больше нет, так что раскладка не может
+тихо перейти на другой шрифт. Страница предпросмотра загружает те же два файла
+(`src/styles.css`), и позиции символов на экране считаются по их же ширинам.
 
 ## Почему именно Liberation Sans
 
 Шаблон построен на метриках Helvetica; на Windows его держал Arial, метрически
 совпадающий с ней. Liberation Sans выбран не по репутации «метрически
 совместимого с Arial», а по измерению — `cvcli --font-report` печатает ширину
-каждого символа, а `tools/fontprobe.sh` сравнивает раскладку целиком:
+каждого символа, а `cvcli --dump-ops` выгружает раскладку целиком:
 
 | Шрифт | Ширины символов против Arial | Раскладка `sample_cv.json` |
 | --- | --- | --- |
@@ -43,17 +45,18 @@ License 1.1, текст в `LICENSE-LiberationSans.txt`; она совмести
 Повторить проверку:
 
 ```bash
-cmake --preset linux && cmake --build build/linux -j
+cargo build --release -p cvcli
+cvcli=target/release/cvcli
 
-# сравнение раскладки целиком
-tools/fontprobe.sh build/linux/bin/cvcli \
-    arial=/path/to/arial.ttf,/path/to/arialbd.ttf \
-    liberation=assets/fonts/LiberationSans-Regular.ttf,assets/fonts/LiberationSans-Bold.ttf
+# раскладка целиком: каждая строка текста с координатами
+$cvcli sample_cv.json arial.pdf --dump-ops arial.json --fonts /path/to/arial.ttf /path/to/arialbd.ttf
+$cvcli sample_cv.json bundled.pdf --dump-ops bundled.json
+diff arial.json bundled.json && echo "раскладка совпадает"
 
-# ширины символов по одному, для диффа
-build/linux/bin/cvcli --font-report --fonts /path/to/arial.ttf /path/to/arialbd.ttf > arial.txt
-build/linux/bin/cvcli --font-report > bundled.txt
-diff <(grep -v '^\[' arial.txt) <(grep -v '^\[' bundled.txt) && echo "метрики совпадают"
+# ширины символов по одному
+$cvcli --font-report --fonts /path/to/arial.ttf /path/to/arialbd.ttf > arial.txt
+$cvcli --font-report > bundled.txt
+diff <(grep -v '^[' arial.txt) <(grep -v '^[' bundled.txt) && echo "метрики совпадают"
 ```
 
 Arial при этом берётся с машины и в репозиторий не копируется: его лицензия
@@ -66,7 +69,7 @@ apt-get download fonts-liberation fonts-croscore
 for deb in *.deb; do dpkg-deb -x "$deb" ext; done
 ```
 
-Результат сравнения зафиксирован в тестах: `tests/test_font.cpp` держит таблицу
-ширин (её печатает `tools/metricstable.sh` из любого шрифта), так что подмена
-файла шрифта на не совпадающий по метрикам роняет тесты, а не тихо меняет
-вёрстку всех резюме.
+Результат сравнения зафиксирован в тестах: `crates/cvb-core/src/font.rs` держит
+таблицу ширин и сверяет каждую метрику обоих начертаний с
+`fixtures/golden/font.txt`, так что подмена файла шрифта на не совпадающий по
+метрикам роняет тесты, а не тихо меняет вёрстку всех резюме.
