@@ -4,25 +4,17 @@
 #
 #   wsl -d Ubuntu -- bash tools/run-qt-wslg.sh
 #
-# Needs the Qt libraries on the loader path, since Qt here was unpacked into $HOME
-# rather than installed.
+# Set CVB_QT to the SDK used for the build if it needs explicit runtime paths.
 set -u
 cd "$(dirname "$0")/.."
 
-qt=${CVB_QT:-$HOME/Qt/6.8.3/gcc_64}
-sysroot=$HOME/qtsysroot/tree/usr/lib/x86_64-linux-gnu
+if [ -n "${CVB_QT:-}" ]; then
+    sysroot=$HOME/qtsysroot/tree/usr/lib/x86_64-linux-gnu
+    export LD_LIBRARY_PATH="$CVB_QT/lib:$sysroot${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    export QT_PLUGIN_PATH="$CVB_QT/plugins"
+fi
 
-export LD_LIBRARY_PATH="$qt/lib:$sysroot${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export QT_PLUGIN_PATH="$qt/plugins"
 export DISPLAY=${DISPLAY:-:0}
 export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/mnt/wslg/runtime-dir}
-
-# WSLg offers Wayland as well, but the wayland plugin lives in the qtwayland
-# module, which a qtbase-only installation does not have. Asking for xcb outright
-# is quieter than letting Qt try wayland first and complain.
-if [ ! -f "$qt/plugins/platforms/libqwayland-generic.so" ]; then
-    export QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-xcb}
-    unset WAYLAND_DISPLAY
-fi
 
 exec ./build/linux/bin/CVBuilder-Qt "$@"

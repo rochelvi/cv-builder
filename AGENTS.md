@@ -71,7 +71,7 @@ on the OpenGL imported targets even for a Widgets program, which is what
 
 ```bash
 cmake --preset linux \
-      -DCMAKE_PREFIX_PATH=$HOME/Qt/6.8.3/gcc_64 \
+      -DCMAKE_PREFIX_PATH=/path/to/qt-sdk \
       -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=tools/qtshim.cmake
 ```
 
