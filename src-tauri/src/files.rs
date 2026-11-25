@@ -40,6 +40,34 @@ pub fn check_path(path: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// The file named by a command-line argument, which may be relative to the
+/// directory the program was started from: made absolute against `base` and
+/// cleaned of "." and "..", lexically, so the result passes [`check_path`].
+/// None for an option ("--x") or an argument that climbs above the root.
+pub fn from_command_line(base: &Path, arg: &std::ffi::OsStr) -> Option<PathBuf> {
+    if arg.to_string_lossy().starts_with("--") || arg.is_empty() {
+        return None;
+    }
+    let joined = base.join(arg);
+    if !joined.is_absolute() {
+        return None;
+    }
+    let mut out = PathBuf::new();
+    for component in joined.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                // pop() refuses at the root: ".." above it is not a place.
+                if !out.pop() {
+                    return None;
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    check_path(&out).ok().map(|()| out)
+}
+
 /// Reads a file that has to be a regular file of at most `limit` bytes.
 pub fn read_limited(path: &Path, limit: u64) -> AppResult<Vec<u8>> {
     check_path(path)?;
@@ -224,6 +252,24 @@ pub(crate) mod tests {
     fn missing_file_reports_the_old_message() {
         let dir = TempDir::new("gone");
         assert_eq!(read_resume(&dir.0.join("gone.json")).unwrap_err(), AppError::io(CANNOT_OPEN));
+    }
+
+    /// Security: a command-line argument becomes an absolute, clean path or
+    /// nothing; options and empty arguments are not files.
+    #[test]
+    fn command_line_paths_are_normalised() {
+        let base = std::env::temp_dir().join("work");
+        let from = |s: &str| from_command_line(&base, std::ffi::OsStr::new(s));
+        assert_eq!(from("cv.json"), Some(base.join("cv.json")));
+        assert_eq!(from("./a/../cv.json"), Some(base.join("cv.json")));
+        assert_eq!(from("../cv.json"), Some(std::env::temp_dir().join("cv.json")));
+        assert_eq!(from("--flag"), None);
+        assert_eq!(from(""), None);
+        let deep = "../".repeat(200) + "cv.json";
+        assert_eq!(from(&deep), None);
+        for p in [from("cv.json"), from("../cv.json")].into_iter().flatten() {
+            assert!(check_path(&p).is_ok());
+        }
     }
 
     #[test]

@@ -403,6 +403,8 @@ impl<'a> Builder<'a> {
     }
 
     /// How many groups fit in `space`, filling the two columns alternately.
+    // Indexed on purpose: the column is the position's parity, as in the C++.
+    #[allow(clippy::needless_range_loop)]
     fn skills_that_fit(groups: &[&SkillGroup], from: usize, space: f64) -> usize {
         let mut heights = [0.0f64; 2];
         let mut counts = [0usize; 2];
@@ -418,6 +420,7 @@ impl<'a> Builder<'a> {
         groups.len() - from
     }
 
+    #[allow(clippy::needless_range_loop)] // two columns, indexed by number
     fn draw_skills(&mut self, groups: &[&SkillGroup], from: usize, count: usize) {
         let top = self.y;
         let mut bottom = top;

@@ -349,8 +349,8 @@ impl<'a> Writer<'a> {
     fn write_trailer(&mut self, object_count: usize) {
         let xref = self.body.len();
         let mut table = format!("xref\n0 {object_count}\n0000000000 65535 f \n");
-        for i in 1..object_count {
-            table.push_str(&format!("{:010} 00000 n \n", self.offsets[i]));
+        for offset in &self.offsets[1..object_count] {
+            table.push_str(&format!("{offset:010} 00000 n \n"));
         }
         table.push_str(&format!(
             "trailer\n<< /Size {object_count} /Root {} 0 R /Info {} 0 R >>\nstartxref\n{xref}\n%%EOF\n",

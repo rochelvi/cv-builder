@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-theme-mode"
+description = "Enables the theme_mode command without any pre-configured scope."
+commands.allow = ["theme_mode"]
+
+[[permission]]
+identifier = "deny-theme-mode"
+description = "Denies the theme_mode command without any pre-configured scope."
+commands.deny = ["theme_mode"]

@@ -36,11 +36,10 @@ fn be32(d: &[u8], at: usize) -> Option<u32> {
 /// shorter than a word counts as zero-padded.
 fn checksum(data: &[u8]) -> u32 {
     let mut sum = 0u32;
-    let mut chunks = data.chunks_exact(4);
-    for word in &mut chunks {
-        sum = sum.wrapping_add(u32::from_be_bytes([word[0], word[1], word[2], word[3]]));
+    let (words, rest) = data.as_chunks::<4>();
+    for word in words {
+        sum = sum.wrapping_add(u32::from_be_bytes(*word));
     }
-    let rest = chunks.remainder();
     if !rest.is_empty() {
         let mut tail = [0u8; 4];
         tail[..rest.len()].copy_from_slice(rest);
@@ -464,11 +463,11 @@ impl Font {
             } else if flags & 0x0080 != 0 {
                 at += 8; // 2x2 transform
             }
-            if let Some(slot) = used.get_mut(component as usize) {
-                if !*slot {
-                    *slot = true;
-                    self.collect_components(component, used, depth + 1);
-                }
+            if let Some(slot) = used.get_mut(component as usize)
+                && !*slot
+            {
+                *slot = true;
+                self.collect_components(component, used, depth + 1);
             }
             if flags & 0x0020 == 0 {
                 return; // no MORE_COMPONENTS
@@ -510,7 +509,7 @@ impl Font {
             }
             let Some((start, end)) = self.glyph_range(gid, glyf) else { continue };
             new_glyf.extend_from_slice(&self.data[start..end]);
-            while new_glyf.len() % 4 != 0 {
+            while !new_glyf.len().is_multiple_of(4) {
                 new_glyf.push(0);
             }
         }
@@ -563,17 +562,17 @@ impl Font {
         }
         for (_, data) in &out {
             result.extend_from_slice(data);
-            while result.len() % 4 != 0 {
+            while !result.len().is_multiple_of(4) {
                 result.push(0);
             }
         }
 
         // checkSumAdjustment closes the loop over the finished file.
         let adjustment = 0xB1B0_AFBAu32.wrapping_sub(checksum(&result));
-        if let Some(at) = head_offset.map(|o| o + 8) {
-            if at + 4 <= result.len() {
-                result[at..at + 4].copy_from_slice(&adjustment.to_be_bytes());
-            }
+        if let Some(at) = head_offset.map(|o| o + 8)
+            && at + 4 <= result.len()
+        {
+            result[at..at + 4].copy_from_slice(&adjustment.to_be_bytes());
         }
         result
     }

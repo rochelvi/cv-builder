@@ -593,13 +593,15 @@ mod tests {
     /// missing section is repaired to exactly the known set before use.
     #[test]
     fn repairs_sections_from_outside() {
-        let mut cv = Cv::default();
-        cv.sections = vec![
-            SectionRef { id: "jobs".into(), label: "A".into(), enabled: true, order: 5 },
-            SectionRef { id: "jobs".into(), label: "B".into(), enabled: true, order: 0 },
-            SectionRef { id: "../../etc".into(), label: "x".into(), enabled: true, order: 1 },
-            SectionRef { id: "summary".into(), label: "S".into(), enabled: false, order: -3 },
-        ];
+        let cv = Cv {
+            sections: vec![
+                SectionRef { id: "jobs".into(), label: "A".into(), enabled: true, order: 5 },
+                SectionRef { id: "jobs".into(), label: "B".into(), enabled: true, order: 0 },
+                SectionRef { id: "../../etc".into(), label: "x".into(), enabled: true, order: 1 },
+                SectionRef { id: "summary".into(), label: "S".into(), enabled: false, order: -3 },
+            ],
+            ..Cv::default()
+        };
         let cv = cv.repaired();
         let ids: Vec<&str> = cv.sections.iter().map(|s| s.id.as_str()).collect();
         assert_eq!(ids.len(), SECTION_IDS.len());
