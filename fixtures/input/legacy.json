@@ -1,0 +1,15 @@
+{
+  "name": "Legacy Person",
+  "role": "OLD FORMAT",
+  "email": "old@example.com",
+  "location": "",
+  "website": "example.org",
+  "summary": "Written before sections were editable.",
+  "volunteer_title": "Помощь людям",
+  "lab_title": "Домашний стенд",
+  "jobs": [{"title": "Engineer", "period": "2010", "company": "", "location": "Remote", "bullets": ["One", "  ", "Two"]}],
+  "volunteering": [{"title": "Helper", "period": "", "company": "Shelter", "location": "", "bullets": []}, {"title": "", "company": "", "bullets": []}],
+  "education": [{"title": "BSc", "subtitle": "", "highlight": false}, {"title": "", "subtitle": "only subtitle"}, {"title": "MSc", "subtitle": "Uni", "highlight": true}, {"title": "Cert", "subtitle": ""}],
+  "lab_bullets": ["Proxmox", ""],
+  "theme": {"background": "#ffffff", "heading": "000000", "body": "#12345", "accent": "zzzzzz", "unknown": "#abcdef"}
+}

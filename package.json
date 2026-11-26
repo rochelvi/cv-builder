@@ -1,0 +1,21 @@
+{
+  "name": "cv-builder",
+  "private": true,
+  "version": "3.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "tauri": "tauri",
+    "release": "node scripts/release.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.5"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.6",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8"
+  }
+}

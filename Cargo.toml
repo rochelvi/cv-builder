@@ -1,0 +1,24 @@
+# CV Builder: the core (model, layout, TrueType, PDF), the console renderer and
+# the desktop application.
+#
+# The core is a crate of its own, with no Tauri in it, for the same reason the C++
+# build kept it a separate target: the console renderer links it alone, so a
+# single-file cvcli on Linux does not drag webkit2gtk along.
+[workspace]
+members = ["crates/cvb-core", "crates/cvcli", "src-tauri"]
+resolver = "3"
+
+[workspace.package]
+version = "3.0.0"
+edition = "2024"
+rust-version = "1.90"
+license = "GPL-3.0-only"
+authors = ["Daniil Mishin"]
+
+# Profiles only take effect at the workspace root.
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "s"
+panic = "abort"
+strip = true

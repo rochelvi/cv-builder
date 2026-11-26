@@ -1,6 +1,4 @@
 build/
-*.o
-*.d
 *.exe
 *.pdf
 
@@ -14,5 +12,13 @@ release.ps1
 # the refactor changed no bytes. Local workflow, not part of the project.
 .baseline/
 
-# aqtinstall's log, left behind when Qt is fetched into a home directory.
-aqtinstall.log
+
+# Reference PDFs of the C++ implementation; see fixtures/README.md.
+!fixtures/golden/*.pdf
+
+# Rust and the page
+target/
+node_modules/
+dist/
+src-tauri/gen/
+src-tauri/binaries/

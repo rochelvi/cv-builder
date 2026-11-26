@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Draws res/app.ico from the palette the CV template itself uses.
+"""Draws the application icon from the palette the CV template itself uses.
 
 No third-party modules: the shapes are rasterised by hand at 8x and boxed down
 for antialiasing, PNG comes out of zlib, and the .ico container is written byte
 by byte. Run it after changing the palette or the geometry below:
 
-    python tools/make_icon.py
+    python tools/make_icon.py              # src-tauri/icons/icon.ico
+    python tools/make_icon.py --png 512    # src-tauri/icons/source.png
+
+The PNG is the source for `npx tauri icon`, which derives the Linux and macOS
+icons from it; the .ico is written by hand because its small sizes use the
+simplified drawing.
 
 The icon is a page from the dark template - accent bar down the left edge, a
 name line, section headings in accent green, body lines in grey. Sizes below
@@ -19,7 +24,7 @@ import zlib
 from pathlib import Path
 
 # ------------------------------------------------------------------- palette
-# Straight out of Theme::Theme() in src/model.cpp.
+# Straight out of Theme::default() in crates/cvb-core/src/model.rs.
 RIM = (0x2A, 0x2F, 0x3A)
 PAGE = (0x12, 0x16, 0x1C)
 HEADING = (0xE8, 0xEC, 0xF2)
@@ -201,11 +206,26 @@ def main():
     for _, blob in images:
         out += blob
 
-    path = Path(__file__).resolve().parent.parent / "res" / "app.ico"
+    path = ICONS / "icon.ico"
     path.write_bytes(bytes(out))
-    print(f"res/app.ico: {len(out)} bytes, {len(images)} sizes "
+    print(f"{path.name}: {len(out)} bytes, {len(images)} sizes "
           f"({', '.join(str(s) for s, _ in images)})")
 
 
+ICONS = Path(__file__).resolve().parent.parent / "src-tauri" / "icons"
+
+
+def main_png(size):
+    pixels, actual = draw(size)
+    path = ICONS / "source.png"
+    path.write_bytes(png(pixels, actual))
+    print(f"{path.name}: {actual} px")
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if len(sys.argv) == 3 and sys.argv[1] == "--png":
+        main_png(int(sys.argv[2]))
+    else:
+        main()

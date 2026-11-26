@@ -1,0 +1,126 @@
+{
+  "name": "Legacy Person",
+  "role": "OLD FORMAT",
+  "email": "old@example.com",
+  "location": "",
+  "website": "example.org",
+  "summary": "Written before sections were editable.",
+  "jobs": [
+    {
+      "title": "Engineer",
+      "period": "2010",
+      "company": "",
+      "location": "Remote",
+      "bullets": [
+        "One",
+        "  ",
+        "Two"
+      ]
+    }
+  ],
+  "volunteering": [
+    {
+      "title": "Helper",
+      "period": "",
+      "company": "Shelter",
+      "location": "",
+      "bullets": []
+    },
+    {
+      "title": "",
+      "period": "",
+      "company": "",
+      "location": "",
+      "bullets": []
+    }
+  ],
+  "skill_groups": [],
+  "soft_skills": [],
+  "education": [
+    {
+      "title": "BSc",
+      "subtitle": "",
+      "highlight": false
+    },
+    {
+      "title": "",
+      "subtitle": "only subtitle",
+      "highlight": false
+    },
+    {
+      "title": "MSc",
+      "subtitle": "Uni",
+      "highlight": true
+    },
+    {
+      "title": "Cert",
+      "subtitle": "",
+      "highlight": false
+    }
+  ],
+  "studies": [],
+  "lab_bullets": [
+    "Proxmox",
+    ""
+  ],
+  "sections": [
+    {
+      "id": "summary",
+      "label": "Summary",
+      "enabled": true,
+      "order": 0
+    },
+    {
+      "id": "studies",
+      "label": "Education",
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "id": "jobs",
+      "label": "Experience",
+      "enabled": true,
+      "order": 2
+    },
+    {
+      "id": "skill_groups",
+      "label": "Technical Skills",
+      "enabled": true,
+      "order": 3
+    },
+    {
+      "id": "soft_skills",
+      "label": "Soft Skills",
+      "enabled": true,
+      "order": 4
+    },
+    {
+      "id": "education",
+      "label": "Education & Certifications",
+      "enabled": true,
+      "order": 5
+    },
+    {
+      "id": "lab",
+      "label": "Домашний стенд",
+      "enabled": true,
+      "order": 6
+    },
+    {
+      "id": "volunteering",
+      "label": "Помощь людям",
+      "enabled": true,
+      "order": 7
+    }
+  ],
+  "theme": {
+    "background": "#ffffff",
+    "rule": "#2a2f3a",
+    "heading": "000000",
+    "body": "#12345",
+    "subtle": "#7a8292",
+    "faint": "#4a5260",
+    "accent": "zzzzzz",
+    "accent2": "#7ab8f5"
+  }
+}

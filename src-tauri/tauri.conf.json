@@ -1,0 +1,80 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CV Builder",
+  "identifier": "io.github.cvbuilder",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "CV Builder",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 560,
+        "center": true,
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self'",
+        "font-src": "'self'",
+        "img-src": "'self'",
+        "connect-src": "ipc: http://ipc.localhost",
+        "object-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'",
+        "frame-src": "'none'",
+        "worker-src": "'none'"
+      },
+      "devCsp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "font-src": "'self'",
+        "img-src": "'self'",
+        "connect-src": "ipc: http://ipc.localhost ws://localhost:1420",
+        "object-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'",
+        "frame-src": "'none'",
+        "worker-src": "'none'"
+      },
+      "freezePrototype": true,
+      "capabilities": ["main-window"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "deb", "appimage"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "publisher": "Daniil Mishin",
+    "copyright": "© 2026 Daniil Mishin. Лицензия GPL-3.0",
+    "license": "GPL-3.0-only",
+    "category": "Productivity",
+    "shortDescription": "Resume editor with live preview and A4 PDF export",
+    "longDescription": "Резюме: слева форма редактирования, справа живой предпросмотр, на выходе A4-PDF.",
+    "resources": {
+      "../LICENSE": "LICENSE",
+      "../assets/fonts/LICENSE-LiberationSans.txt": "LICENSE-LiberationSans.txt"
+    },
+    "windows": {
+      "webviewInstallMode": { "type": "embedBootstrapper" },
+      "nsis": {
+        "installMode": "both",
+        "languages": ["Russian"],
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "installer/hooks.nsh"
+      }
+    }
+  }
+}

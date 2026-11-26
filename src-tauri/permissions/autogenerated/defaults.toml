@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-defaults"
+description = "Enables the defaults command without any pre-configured scope."
+commands.allow = ["defaults"]
+
+[[permission]]
+identifier = "deny-defaults"
+description = "Denies the defaults command without any pre-configured scope."
+commands.deny = ["defaults"]
